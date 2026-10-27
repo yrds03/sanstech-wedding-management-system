@@ -28,7 +28,7 @@ export default async function PlatformAdminPage({
             paket maupun harga Add-On.
           </p>
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <form action="/api/auth/session" method="POST">
+            <form action="/api/auth/dev-session" method="POST">
               <input type="hidden" name="userId" value="user-platform-admin" />
               <input type="hidden" name="redirectTo" value="/admin" />
               <button

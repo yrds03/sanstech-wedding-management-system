@@ -13,7 +13,7 @@ export default function LoginPage({
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-ivory px-4 py-12">
-      <div className="w-full max-w-md rounded-card border border-border bg-surface p-6 sm:p-8 shadow-sm">
+      <div className="w-full max-w-md rounded-card border border-gold/35 bg-surface p-6 sm:p-8 shadow-md">
         <div className="text-center">
           <Link
             href="/"
@@ -21,7 +21,7 @@ export default function LoginPage({
           >
             S
           </Link>
-          <h1 className="mt-4 text-xl font-bold text-navy">Selamat Datang Kembali</h1>
+          <h1 className="mt-4 font-serif text-2xl font-bold text-navy">Selamat Datang Kembali</h1>
           <p className="mt-1 text-xs text-ink/60">{BRAND_NAME}</p>
         </div>
 
@@ -34,9 +34,8 @@ export default function LoginPage({
           </div>
         )}
 
-        {/* Form Login Utama */}
+        {/* Form Login Utama (Mendukung Email WO, Pengantin, maupun Super Admin) */}
         <form action="/api/auth/dev-session" method="POST" className="mt-6 space-y-4">
-          <input type="hidden" name="userId" value="user-wo-a" />
           <input type="hidden" name="redirectTo" value={nextUrl} />
 
           <div>
@@ -79,27 +78,26 @@ export default function LoginPage({
 
           <button
             type="submit"
-            className="w-full min-h-[44px] rounded-button bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-light transition"
+            className="w-full min-h-[44px] rounded-button bg-navy border border-gold/40 px-4 py-2.5 text-sm font-semibold text-gold-light hover:bg-navy-light transition"
           >
             Masuk ke Dashboard
           </button>
         </form>
 
-        {/* Panel Uji Cepat Multi-Peran (Hanya Development Lokal) */}
-        {!supabaseReady && process.env.NODE_ENV !== 'production' && (
+        {/* Panel Uji Cepat Multi-Peran (Tampil Selama Mode Testing / Sandbox) */}
+        {!supabaseReady && (
           <div className="mt-6 pt-6 border-t border-border">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-bold uppercase tracking-wider text-navy">
-                Uji Peran &amp; Isolasi Tenant (Dev Sandbox)
+                Akses Cepat Simulasi Tim WO &amp; Super Admin
               </p>
-              <Badge variant="gold">Sprint 0–1</Badge>
+              <Badge variant="gold">1-Klik Login</Badge>
             </div>
             <p className="text-xs text-ink/65 mb-3 leading-relaxed">
-              Gunakan tombol di bawah untuk menguji isolasi akses antara Wedding Organizer A,
-              Pasangan Calon Pengantin, dan Wedding Organizer B:
+              Klik salah satu tombol di bawah ini untuk langsung masuk tanpa mengetik ulang:
             </p>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <form action="/api/auth/dev-session" method="POST">
                 <input type="hidden" name="userId" value="user-wo-a" />
                 <input type="hidden" name="redirectTo" value="/app/workspaces" />
@@ -109,7 +107,9 @@ export default function LoginPage({
                 >
                   <div>
                     <strong className="text-navy block">1. Owner Wedding Organizer A</strong>
-                    <span className="text-ink/60">owner@sanstech-wo.id (Mengelola 2 Acara)</span>
+                    <span className="text-ink/60">
+                      Email: owner@sanstech-wo.id · Pass: sanstech-demo-password
+                    </span>
                   </div>
                   <span className="font-semibold text-navy">Masuk &rarr;</span>
                 </button>
@@ -125,7 +125,7 @@ export default function LoginPage({
                   <div>
                     <strong className="text-navy block">2. Calon Pengantin (Andi &amp; Putri)</strong>
                     <span className="text-ink/60">
-                      andi.putri@contoh.id (Hanya akses acara miliknya)
+                      Email: andi.putri@contoh.id · Pass: sanstech-demo-password
                     </span>
                   </div>
                   <span className="font-semibold text-navy">Masuk &rarr;</span>
@@ -142,7 +142,7 @@ export default function LoginPage({
                   <div>
                     <strong className="text-navy block">3. Owner WO Tenant B (Uji Isolasi)</strong>
                     <span className="text-ink/60">
-                      admin@lusiana-organizer.id (Tidak bisa buka acara WO A)
+                      Email: admin@lusiana-organizer.id · Pass: sanstech-demo-password
                     </span>
                   </div>
                   <span className="font-semibold text-navy">Masuk &rarr;</span>
@@ -158,10 +158,10 @@ export default function LoginPage({
                 >
                   <div>
                     <strong className="text-gold-light block">
-                      4. Super Admin Pemilik Sistem (Atur Harga &amp; Add-On)
+                      4. 🔐 Super Admin Pemilik Sistem (Atur Harga &amp; Add-On)
                     </strong>
-                    <span className="text-ivory/75">
-                      superadmin@sanstech.id (Menu rahasia pemilik aplikasi, tidak terlihat klien)
+                    <span className="text-ivory/80">
+                      Email: superadmin@sanstech.id · Pass: SanstechAdmin#2026
                     </span>
                   </div>
                   <span className="font-semibold text-gold-light">Buka /admin &rarr;</span>
@@ -181,4 +181,3 @@ export default function LoginPage({
     </div>
   );
 }
-

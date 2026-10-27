@@ -9,9 +9,9 @@ export const DEV_SESSION_COOKIE_NAME = 'sanstech_dev_session_uid';
 
 /**
  * Mengambil profil pengguna yang sedang masuk secara server-authoritative.
- * - Jika Supabase telah dikonfigurasi di `.env.local`, memeriksa sesi JWT dari Supabase Auth.
- * - Jika dalam pengembangan lokal tanpa kredensial Supabase (`NODE_ENV !== 'production'`),
- *   membaca cookie sesi pengembangan yang aman agar alur WO / Pengantin / Tenant B dapat diuji.
+ * - Jika Supabase telah dikonfigurasi, memeriksa sesi JWT dari Supabase Auth.
+ * - Jika kredensial Supabase belum dihubungkan (termasuk saat uji coba tim WO di Vercel),
+ *   membaca cookie sesi sandbox yang aman agar seluruh peran (Super Admin, WO, Pengantin) dapat diuji.
  */
 export async function getCurrentUserServer(): Promise<UserProfile | null> {
   if (isSupabaseConfigured()) {
@@ -45,12 +45,10 @@ export async function getCurrentUserServer(): Promise<UserProfile | null> {
     }
   }
 
-  if (process.env.NODE_ENV !== 'production') {
-    const cookieStore = cookies();
-    const devUid = cookieStore.get(DEV_SESSION_COOKIE_NAME)?.value;
-    if (devUid && DEMO_USERS[devUid]) {
-      return getUserProfileById(devUid);
-    }
+  const cookieStore = cookies();
+  const devUid = cookieStore.get(DEV_SESSION_COOKIE_NAME)?.value;
+  if (devUid && DEMO_USERS[devUid]) {
+    return getUserProfileById(devUid);
   }
 
   return null;
@@ -66,4 +64,3 @@ export async function requireAuthenticatedUser(redirectToPath?: string): Promise
   }
   return user;
 }
-
