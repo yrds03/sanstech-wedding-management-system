@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { BRAND_NAME, BRAND_SHORT_NAME, BRAND_TAGLINE } from '@/lib/types';
-import { getPlansCatalog, getPostEventRetentionConfig } from '@/lib/plans';
+import { getAddOnsCatalog, getPlansCatalog, getPostEventRetentionConfig } from '@/lib/plans';
 import { Badge } from '@/components/ui/primitives';
 import { getCurrentUserServer } from '@/lib/auth/session';
 
@@ -9,12 +9,13 @@ export const dynamic = 'force-dynamic';
 export default async function LandingPage() {
   const currentUser = await getCurrentUserServer();
   const catalog = getPlansCatalog();
+  const addOns = getAddOnsCatalog();
   const retention = getPostEventRetentionConfig();
   const plans = [catalog.free, catalog.pro, catalog.pro_plus];
 
   return (
     <div className="min-h-screen flex flex-col bg-ivory">
-      {/* Luxury Top Bar */}
+      {/* Luxury Top Bar (Tanpa menampilkan link Pengaturan Harga Super Admin ke Klien/Publik) */}
       <div className="bg-navy-dark text-gold-light px-4 py-2 text-[11px] tracking-widest uppercase border-b border-gold/25">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <span>
@@ -22,11 +23,13 @@ export default async function LandingPage() {
           </span>
           <div className="flex items-center gap-4">
             <Link href="/panduan" className="hover:text-white underline underline-offset-4">
-              Buku Pedoman Operasional (Cetak PDF)
+              Buku Pedoman Operasional Lengkap (Cetak PDF)
             </Link>
-            <Link href="/admin" className="hover:text-white underline underline-offset-4">
-              Panel Pengaturan Harga (Super Admin)
-            </Link>
+            {currentUser?.isPlatformAdmin && (
+              <Link href="/admin" className="hover:text-white underline underline-offset-4">
+                Panel Super Admin (Khusus Pemilik Sistem)
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -290,17 +293,14 @@ export default async function LandingPage() {
       <section id="paket" className="py-20 max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center max-w-3xl mx-auto mb-14">
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-gold-dark">
-            Investasi Per Acara · Dapat Diatur Dari Panel Super Admin
+            Investasi Per Acara · Tanpa Langganan Bulanan Wajib
           </p>
           <h2 className="mt-2 font-serif text-3xl sm:text-4xl font-bold text-navy">
             Pilihan Paket Layanan {BRAND_SHORT_NAME}
           </h2>
           <p className="mt-2 text-sm text-ink/70">
-            Harga di bawah ini dapat Anda ubah kapan saja secara langsung melalui menu{' '}
-            <Link href="/admin" className="font-bold text-navy underline">
-              Panel Super Admin (/admin)
-            </Link>
-            . Setiap acara berbayar mencakup masa aktif unduh laporan hingga{' '}
+            Setiap acara berbayar mencakup kapasitas undangan digital, sistem QR Check-in anti
+            ganda, serta masa aktif unduh laporan hingga{' '}
             <strong>H+{retention.gracePeriodDaysAfterEvent} hari</strong> setelah resepsi selesai.
           </p>
         </div>
@@ -384,6 +384,52 @@ export default async function LandingPage() {
             );
           })}
         </div>
+
+        {/* 4. Katalog Layanan Tambahan (Add-Ons) */}
+        <div id="addons" className="mt-20 pt-16 border-t border-gold/30">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <Badge variant="gold" className="mb-3">
+              LAYANAN TAMBAHAN &amp; DUKUNGAN OPERASIONAL HARI-H (ADD-ONS)
+            </Badge>
+            <h3 className="font-serif text-3xl sm:text-4xl font-bold text-navy">
+              Katalog Add-On Fleksibel Sesuai Kebutuhan Acara
+            </h3>
+            <p className="mt-2 text-sm text-ink/70">
+              Pisahkan biaya lisensi software dari layanan perangkat keras, kru lapangan, maupun
+              tambahan kuota agar klien hanya membayar yang benar-benar dibutuhkan:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {addOns.map((addon) => (
+              <div
+                key={addon.code}
+                className="rounded-card border border-gold/35 bg-surface p-6 shadow-sm flex flex-col justify-between hover:border-gold transition"
+              >
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Badge variant="outline" className="border-gold/40 text-gold-dark">
+                      {addon.category}
+                    </Badge>
+                    <span className="font-serif text-2xl font-bold text-navy tabular-nums">
+                      {addon.priceFormatted}{' '}
+                      <span className="font-sans text-[11px] font-normal text-ink/55">
+                        ({addon.unitLabel})
+                      </span>
+                    </span>
+                  </div>
+                  <h4 className="mt-3 font-serif text-xl font-bold text-navy">{addon.name}</h4>
+                  <p className="mt-1.5 text-xs sm:text-sm text-ink/75 leading-relaxed">
+                    {addon.description}
+                  </p>
+                </div>
+                <p className="mt-4 pt-3 border-t border-border text-[11px] text-ink/60">
+                  <strong>Ketentuan Layanan:</strong> {addon.deliverableNote}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Footer */}
@@ -395,10 +441,7 @@ export default async function LandingPage() {
           </div>
           <div className="flex flex-wrap items-center gap-5">
             <Link href="/panduan" className="text-gold-light hover:underline">
-              Buku Pedoman Cetak
-            </Link>
-            <Link href="/admin" className="text-gold-light hover:underline">
-              Pengaturan Harga &amp; Lisensi
+              Buku Pedoman Lengkap (Cetak PDF)
             </Link>
             <span>UU Pelindungan Data Pribadi No. 27/2022</span>
           </div>

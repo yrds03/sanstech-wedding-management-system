@@ -4,10 +4,11 @@ import { getPublicInvitationByToken } from '@/lib/db/repository';
 import { formatEventDateId } from '@/lib/dates';
 import { Badge } from '@/components/ui/primitives';
 import { BRAND_NAME } from '@/lib/types';
+import { generateQrCodeDataUrl, generateQrCodeSvg } from '@/lib/qr/render';
 
 export const dynamic = 'force-dynamic';
 
-export default function PublicInvitationPage({
+export default async function PublicInvitationPage({
   params,
   searchParams,
 }: {
@@ -21,6 +22,8 @@ export default function PublicInvitationPage({
   }
 
   const { event, group } = data;
+  const qrSvg = await generateQrCodeSvg(group.qrTokenPreview);
+  const qrPngDataUrl = await generateQrCodeDataUrl(group.qrTokenPreview);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-navy-dark via-navy to-navy-dark text-ivory py-12 px-4 flex flex-col items-center">
@@ -73,30 +76,50 @@ export default function PublicInvitationPage({
             </div>
           )}
 
-          {/* Kartu QR Code Check-in Hari-H */}
-          <div className="rounded-card border-2 border-dashed border-navy/30 bg-white p-6 text-center">
+          {/* Kartu QR Code Matriks 2D Asli (Siap Dipindai Kamera / Barcode Scanner) */}
+          <div className="rounded-card border-2 border-gold/50 bg-white p-6 text-center shadow-sm">
             <p className="text-xs font-bold uppercase tracking-wider text-navy">
               Kartu Akses Check-in Hari-H (Tunjukkan di Meja Penerima Tamu)
             </p>
-            <div className="my-4 mx-auto h-36 w-36 rounded-card bg-navy text-gold-light flex flex-col items-center justify-center border-2 border-gold shadow-inner p-3">
-              <span className="text-[10px] uppercase tracking-widest text-ivory/70">
-                SANSTECH QR
-              </span>
-              <span className="mt-1 font-mono text-sm font-bold tracking-wider text-white break-all">
+            <p className="text-[11px] text-ink/60 mt-0.5">
+              Arahkan kamera scanner petugas ke gambar kode QR di bawah ini:
+            </p>
+
+            <div className="my-5 mx-auto w-56 rounded-card bg-white p-3 border-2 border-navy shadow-md flex flex-col items-center">
+              <div
+                className="w-48 h-48 [&>svg]:w-full [&>svg]:h-full"
+                dangerouslySetInnerHTML={{ __html: qrSvg }}
+              />
+              <span className="mt-2 font-mono text-xs font-bold tracking-wider text-navy">
                 {group.qrTokenPreview}
               </span>
-              <span className="mt-2 text-[10px] bg-gold/20 px-2 py-0.5 rounded text-gold-light">
-                Kuota: {group.capacity} Orang
+              <span className="mt-1 text-[10px] font-semibold uppercase tracking-widest bg-gold/20 text-gold-dark px-2.5 py-0.5 rounded">
+                Kuota Akses: {group.capacity} Orang
               </span>
             </div>
-            <p className="text-[11px] text-ink/65">
+
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+              <a
+                href={qrPngDataUrl}
+                download={`QR-${group.qrTokenPreview}.png`}
+                className="inline-flex items-center rounded-button bg-navy px-4 py-2 text-xs font-bold text-gold-light hover:bg-navy-light transition"
+              >
+                📥 Simpan Gambar QR ke HP (PNG)
+              </a>
+            </div>
+
+            <p className="mt-3 text-[11px] text-ink/65">
               Status Kehadiran Hari-H: <strong>{group.checkedInCount}</strong> dari{' '}
               <strong>{group.capacity}</strong> tempat telah digunakan.
             </p>
           </div>
 
           {/* Formulir RSVP */}
-          <form action="/api/public/rsvp" method="POST" className="space-y-4 border-t border-border pt-5">
+          <form
+            action="/api/public/rsvp"
+            method="POST"
+            className="space-y-4 border-t border-border pt-5"
+          >
             <input type="hidden" name="token" value={group.publicTokenPreview} />
 
             <h3 className="font-serif text-xl font-bold text-navy text-center">
@@ -164,4 +187,3 @@ export default function PublicInvitationPage({
     </div>
   );
 }
-

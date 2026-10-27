@@ -18,12 +18,18 @@ import {
   canAddInvitationGroup,
   canStartScannerSession,
   evaluateEventPostLifecycle,
+  getAddOnsCatalog,
   getPlansCatalog,
   updatePlatformPricingAndRetention,
 } from '@/lib/plans';
 import { sanitizeSpreadsheetCell } from '@/lib/qr/tokens';
+import { generateQrCodeDataUrl, generateQrCodeSvg } from '@/lib/qr/render';
 import { checkRateLimit } from '@/lib/security/rate-limit';
-import { purgeEventTestingData } from '@/lib/db/repository';
+import {
+  DEMO_USERS,
+  getDisplayScreenState,
+  purgeEventTestingData,
+} from '@/lib/db/repository';
 
 describe('SANSTECH Wedding Management System — Sprint 0 & 1 Security, RBAC & Isolation Suite', () => {
   beforeEach(() => {
@@ -236,6 +242,37 @@ describe('SANSTECH Wedding Management System — Sprint 0 & 1 Security, RBAC & I
     // Uji Rate Limiter
     const rl = checkRateLimit({ key: 'test-ip', limit: 2, windowMs: 10000 });
     expect(rl.allowed).toBe(true);
+  });
+
+  it('QR Matrix Image, Super Admin Isolation, Add-Ons Catalog & Auto-Sync TV Display State', async () => {
+    // 1. Real 2D QR Code SVG & PNG Data URL
+    const svg = await generateQrCodeSvg('QR-ANDI-VVIP-001');
+    expect(svg).toContain('<svg');
+    const dataUrl = await generateQrCodeDataUrl('QR-ANDI-VVIP-001');
+    expect(dataUrl.startsWith('data:image/png;base64,')).toBe(true);
+
+    // 2. Super Admin Isolation: Akun WO & Klien tidak boleh memiliki isPlatformAdmin
+    expect(DEMO_USERS['user-wo-a']?.isPlatformAdmin).toBe(false);
+    expect(DEMO_USERS['user-couple-andi']?.isPlatformAdmin).toBe(false);
+    expect(DEMO_USERS['user-platform-admin']?.isPlatformAdmin).toBe(true);
+
+    // 3. Katalog 10 Add-Ons & update harga Add-On
+    const addOnsBefore = getAddOnsCatalog();
+    expect(addOnsBefore.length).toBeGreaterThanOrEqual(10);
+    updatePlatformPricingAndRetention({
+      proPriceIdr: 1490000,
+      proPlusPriceIdr: 3490000,
+      gracePeriodDaysAfterEvent: 14,
+      addOnsPrices: { addon_extra_quota_250: 550000 },
+    });
+    const addOnsAfter = getAddOnsCatalog();
+    const extraQuotaAddon = addOnsAfter.find((a) => a.code === 'addon_extra_quota_250');
+    expect(extraQuotaAddon?.priceIdr).toBe(550000);
+
+    // 4. Live Display State: Tidak pernah 404 walaupun sessionId baru di tab terpisah
+    const displayState = getDisplayScreenState('unknown-or-new-session-id');
+    expect(displayState).not.toBeNull();
+    expect(displayState?.event.brideName).toBeDefined();
   });
 });
 

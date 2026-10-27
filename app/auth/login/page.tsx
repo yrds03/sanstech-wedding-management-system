@@ -148,6 +148,25 @@ export default function LoginPage({
                   <span className="font-semibold text-navy">Masuk &rarr;</span>
                 </button>
               </form>
+
+              <form action="/api/auth/dev-session" method="POST">
+                <input type="hidden" name="userId" value="user-platform-admin" />
+                <input type="hidden" name="redirectTo" value="/admin" />
+                <button
+                  type="submit"
+                  className="w-full text-left rounded-button border border-gold/50 bg-navy text-ivory hover:bg-navy-light px-3.5 py-2.5 text-xs transition flex items-center justify-between"
+                >
+                  <div>
+                    <strong className="text-gold-light block">
+                      4. Super Admin Pemilik Sistem (Atur Harga &amp; Add-On)
+                    </strong>
+                    <span className="text-ivory/75">
+                      superadmin@sanstech.id (Menu rahasia pemilik aplikasi, tidak terlihat klien)
+                    </span>
+                  </div>
+                  <span className="font-semibold text-gold-light">Buka /admin &rarr;</span>
+                </button>
+              </form>
             </div>
           </div>
         )}

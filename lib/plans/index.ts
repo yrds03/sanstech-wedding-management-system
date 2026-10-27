@@ -27,14 +27,24 @@ export interface PlanDefinition {
   };
 }
 
+export type AddOnCategory =
+  | 'Kuota & Sistem Digital'
+  | 'Perangkat Keras (Hardware)'
+  | 'Kru & SDM Hari-H'
+  | 'Produksi & Kartu Fisik';
+
+export interface AddOnDefinition {
+  code: string;
+  name: string;
+  category: AddOnCategory;
+  unitLabel: string;
+  priceIdr: number;
+  priceFormatted: string;
+  description: string;
+   deliverableNote: string;
+}
+
 export interface PostEventRetentionConfig {
-  /**
-   * Berapa hari setelah tanggal acara (H+N) pasangan/staf masih bisa membuka acara
-   * untuk melihat & mengunduh laporan akhir sebelum acara dikunci otomatis (Auto-Expired/Archived).
-   * - Selama masa tenggang (H+1 s/d H+graceDays): Mode Baca & Unduh Laporan (Read-Only, tidak bisa check-in lagi).
-   * - Setelah lewat H+graceDays: Akses acara untuk pasangan/staf dinonaktifkan otomatis (Auto-Locked),
-   *   kecuali diperpanjang oleh Admin Platform / Owner WO.
-   */
   gracePeriodDaysAfterEvent: number;
   readOnlyImmediatelyAfterEventDay: boolean;
 }
@@ -45,7 +55,21 @@ interface GlobalPricingAndRetentionStore {
   proMaxGroups: number;
   proPlusMaxGroups: number;
   retention: PostEventRetentionConfig;
+  addOnsPrices: Record<string, number>;
 }
+
+const DEFAULT_ADDONS_PRICES: Record<string, number> = {
+  addon_extra_quota_250: 450000,
+  addon_custom_theme: 850000,
+  addon_wa_concierge_blast: 650000,
+  addon_extend_retention_30d: 350000,
+  addon_tablet_scanner_kit: 600000,
+  addon_tv_led_welcome_65: 1750000,
+  addon_staff_receptionist: 750000,
+  addon_staff_vip_usher: 850000,
+  addon_printed_qr_cards_100: 550000,
+  addon_souvenir_counter_module: 400000,
+};
 
 const globalPricing = globalThis as unknown as {
   __sanstechPricingStore?: GlobalPricingAndRetentionStore;
@@ -54,19 +78,125 @@ const globalPricing = globalThis as unknown as {
 function getPricingStore(): GlobalPricingAndRetentionStore {
   if (!globalPricing.__sanstechPricingStore) {
     globalPricing.__sanstechPricingStore = {
-      // Harga default baru yang lebih masuk akal untuk segmen Wedding B2B/B2C Premium
-      // (Dapat diubah kapan saja lewat menu /admin oleh Super Admin)
-      proPriceIdr: 1490000, // Rp1.490.000 / acara
-      proPlusPriceIdr: 3490000, // Rp3.490.000 / acara
+      proPriceIdr: 1490000,
+      proPlusPriceIdr: 3490000,
       proMaxGroups: 500,
       proPlusMaxGroups: 2000,
       retention: {
-        gracePeriodDaysAfterEvent: 14, // Default 14 hari setelah hari-H masih bisa unduh laporan, lalu nonaktif otomatis
+        gracePeriodDaysAfterEvent: 14,
         readOnlyImmediatelyAfterEventDay: true,
       },
+      addOnsPrices: { ...DEFAULT_ADDONS_PRICES },
     };
   }
   return globalPricing.__sanstechPricingStore;
+}
+
+export function getAddOnsCatalog(): AddOnDefinition[] {
+  const store = getPricingStore();
+  const p = store.addOnsPrices;
+
+  const rawList: Array<Omit<AddOnDefinition, 'priceIdr' | 'priceFormatted'>> = [
+    {
+      code: 'addon_extra_quota_250',
+      name: 'Extra Quota +250 Grup Undangan Unik',
+      category: 'Kuota & Sistem Digital',
+      unitLabel: 'per 250 grup undangan',
+      description:
+        'Tambahan kapasitas 250 grup undangan unik beserta kode QR kriptografis tanpa harus berpindah tingkat paket utama.',
+      deliverableNote: 'Kuota langsung ditambahkan pada batas undangan acara.',
+    },
+    {
+      code: 'addon_custom_theme',
+      name: 'Desain Eksklusif Undangan Digital (Bespoke Theme)',
+      category: 'Kuota & Sistem Digital',
+      unitLabel: 'per acara',
+      description:
+        'Kustomisasi tata letak undangan digital mengikuti palet warna dekorasi pelaminan, monograf inisial pasangan, dan galeri foto pre-wedding.',
+      deliverableNote: 'Revisi desain maksimal 2 kali sebelum publikasi tautan.',
+    },
+    {
+      code: 'addon_wa_concierge_blast',
+      name: 'Jasa Pengiriman Undangan WhatsApp Terverifikasi (500 Nomor)',
+      category: 'Kuota & Sistem Digital',
+      unitLabel: 'per 500 nomor tujuan',
+      description:
+        'Layanan asistensi pengiriman tautan undangan personal & kartu QR ke daftar nomor WhatsApp tamu oleh tim admin dengan laporan status terkirim.',
+      deliverableNote: 'Memerlukan daftar nomor HP valid H-14 sebelum acara.',
+    },
+    {
+      code: 'addon_souvenir_counter_module',
+      name: 'Modul Counter Penukaran Souvenir & Angpao Digital',
+      category: 'Kuota & Sistem Digital',
+      unitLabel: 'per acara',
+      description:
+        'Pencatatan pengambilan souvenir agar tidak terjadi pengambilan ganda serta rekonsiliasi jumlah stok souvenir akhir.',
+      deliverableNote: 'Termasuk akses 1 akun petugas meja souvenir.',
+    },
+    {
+      code: 'addon_extend_retention_30d',
+      name: 'Perpanjangan Masa Aktif Akun & Arsip Laporan (+30 Hari)',
+      category: 'Kuota & Sistem Digital',
+      unitLabel: 'per +30 hari',
+      description:
+        'Memperpanjang masa akses unduh laporan dan galeri ucapan RSVP bagi pasangan pengantin setelah masa tenggang standar berakhir.',
+      deliverableNote: 'Dapat diperpanjang kapan saja sebelum data diarsipkan.',
+    },
+    {
+      code: 'addon_tablet_scanner_kit',
+      name: 'Sewa 1 Unit Tablet Scanner High-Speed + Standing Holder & Modem Backup',
+      category: 'Perangkat Keras (Hardware)',
+      unitLabel: 'per unit / hari-H',
+      description:
+        'Paket perangkat iPad/Tablet dengan kamera autofokus cepat, standing meja registrasi elegan, dan koneksi internet seluler cadangan.',
+      deliverableNote: 'Instalasi H-2 jam sebelum open gate di lokasi gedung.',
+    },
+    {
+      code: 'addon_tv_led_welcome_65',
+      name: 'Sewa Layar Sambutan Smart TV LED 65 Inch + Standing Bracket',
+      category: 'Perangkat Keras (Hardware)',
+      unitLabel: 'per unit / hari-H',
+      description:
+        'Layar sambutan resolusi 4K lengkap dengan mini-PC/dongle yang sudah di-pairing langsung ke sistem Welcome Screen acara.',
+      deliverableNote: 'Ditempatkan di area foyer / pintu masuk utama ballroom.',
+    },
+    {
+      code: 'addon_staff_receptionist',
+      name: 'Petugas Operator Scanner & Registrasi Profesional (1 Shift / 6 Jam)',
+      category: 'Kru & SDM Hari-H',
+      unitLabel: 'per personel',
+      description:
+        'Staf terlatih berseragam formal yang mengoperasikan pemindaian QR, pencarian manual, dan penanganan antrean padat di meja penerima tamu.',
+      deliverableNote: 'Hadir 2 jam sebelum acara untuk briefing & uji perangkat.',
+    },
+    {
+      code: 'addon_staff_vip_usher',
+      name: 'Tim Usher Protokol Penjemputan VVIP & Pendamping Meja',
+      category: 'Kru & SDM Hari-H',
+      unitLabel: 'per personel',
+      description:
+        'Staf pendamping khusus yang memegang perangkat notifikasi VIP untuk menyambut dan mengantar tamu kehormatan langsung ke meja VVIP.',
+      deliverableNote: 'Koordinasi terhubung langsung dengan koordinator floor WO.',
+    },
+    {
+      code: 'addon_printed_qr_cards_100',
+      name: 'Cetak Kartu Akses Fisik QR Code Emboss Gold (Per 100 Kartu)',
+      category: 'Produksi & Kartu Fisik',
+      unitLabel: 'per 100 kartu cetak',
+      description:
+        'Kartu fisik kertas bertekstur premium dengan cetakan QR Code unik masing-masing tamu untuk diselipkan ke dalam undangan cetak fisik.',
+      deliverableNote: 'Waktu produksi 5–7 hari kerja setelah daftar tamu dikunci.',
+    },
+  ];
+
+  return rawList.map((item) => {
+    const priceIdr = p[item.code] ?? DEFAULT_ADDONS_PRICES[item.code] ?? 500000;
+    return {
+      ...item,
+      priceIdr,
+      priceFormatted: formatCurrencyIdr(priceIdr),
+    };
+  });
 }
 
 export function getPlansCatalog(): Record<PlanCode, PlanDefinition> {
@@ -151,13 +281,13 @@ export function getPlansCatalog(): Record<PlanCode, PlanDefinition> {
   };
 }
 
-// Kompatibilitas ekspor statis + dinamis
 export const PLANS_CATALOG = getPlansCatalog();
 
 export function updatePlatformPricingAndRetention(params: {
   proPriceIdr: number;
   proPlusPriceIdr: number;
   gracePeriodDaysAfterEvent: number;
+  addOnsPrices?: Record<string, number>;
 }): void {
   const store = getPricingStore();
   if (params.proPriceIdr >= 0) store.proPriceIdr = params.proPriceIdr;
@@ -165,19 +295,23 @@ export function updatePlatformPricingAndRetention(params: {
   if (params.gracePeriodDaysAfterEvent >= 1 && params.gracePeriodDaysAfterEvent <= 365) {
     store.retention.gracePeriodDaysAfterEvent = params.gracePeriodDaysAfterEvent;
   }
+  if (params.addOnsPrices) {
+    for (const [k, v] of Object.entries(params.addOnsPrices)) {
+      if (typeof v === 'number' && !Number.isNaN(v) && v >= 0) {
+        store.addOnsPrices[k] = v;
+      }
+    }
+  }
 }
 
 export function getPostEventRetentionConfig(): PostEventRetentionConfig {
   return getPricingStore().retention;
 }
 
-/**
- * Menghitung status siklus hidup acara berdasarkan tanggal acara (eventDate) dan masa aktif akun pasca-acara.
- */
 export function evaluateEventPostLifecycle(params: {
-  eventDate: string; // YYYY-MM-DD
+  eventDate: string;
   planCode: PlanCode;
-  referenceDateStr?: string; // YYYY-MM-DD
+  referenceDateStr?: string;
 }): {
   phase: 'upcoming_or_dday' | 'grace_period_readonly' | 'expired_locked';
   daysSinceEvent: number;

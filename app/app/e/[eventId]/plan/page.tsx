@@ -7,7 +7,7 @@ import {
   getWorkspaceIfAuthorized,
 } from '@/lib/db/repository';
 import { AppShell } from '@/components/app/app-shell';
-import { evaluateEventPostLifecycle, getPlansCatalog } from '@/lib/plans';
+import { evaluateEventPostLifecycle, getAddOnsCatalog, getPlansCatalog } from '@/lib/plans';
 import { Badge } from '@/components/ui/primitives';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +27,7 @@ export default async function EventPlanPage({
   const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
   const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
   const catalog = getPlansCatalog();
+  const addOnsCatalog = getAddOnsCatalog();
   const currentPlan = catalog[event.planCode];
   const allPlans = [catalog.free, catalog.pro, catalog.pro_plus];
   const lifecycle = evaluateEventPostLifecycle({
@@ -43,7 +44,7 @@ export default async function EventPlanPage({
       eventId={event.id}
       eventTitle={event.title}
     >
-      <div className="space-y-8">
+      <div className="space-y-10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -52,7 +53,7 @@ export default async function EventPlanPage({
               <Badge variant="outline">{lifecycle.badgeLabelId}</Badge>
             </div>
             <h1 className="mt-2 font-serif text-3xl font-bold text-navy">
-              Paket, Harga &amp; Masa Aktif Akun (S20) — {event.title}
+              Paket, Add-On &amp; Masa Aktif Akun (S20) — {event.title}
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-ink/70 max-w-3xl">
               {lifecycle.explanationId}
@@ -64,11 +65,12 @@ export default async function EventPlanPage({
               href="/admin"
               className="min-h-[42px] inline-flex items-center rounded-button bg-navy border border-gold/50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-gold-light hover:bg-navy-light transition"
             >
-              ⚙️ Ubah Harga Paket di Panel Super Admin &rarr;
+              ⚙️ Pengaturan Harga Super Admin &rarr;
             </Link>
           )}
         </div>
 
+        {/* 3 Paket Utama */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {allPlans.map((plan) => {
             const isCurrent = plan.code === event.planCode;
@@ -134,7 +136,7 @@ export default async function EventPlanPage({
                     </form>
                   ) : (
                     <span className="block text-center text-xs text-ink/60 bg-ivory p-2.5 rounded-button border border-border">
-                      Hubungi Admin WO / Platform untuk Aktivasi
+                      Hubungi Admin WO untuk Upgrade Paket
                     </span>
                   )}
                 </div>
@@ -142,6 +144,52 @@ export default async function EventPlanPage({
             );
           })}
         </div>
+
+        {/* Katalog Layanan Tambahan (Add-Ons) */}
+        <section className="rounded-card border border-gold/30 bg-surface p-6 sm:p-8 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
+            <div>
+              <Badge variant="gold">LAYANAN TAMBAHAN KHUSUS (ADD-ONS)</Badge>
+              <h2 className="mt-1.5 font-serif text-2xl font-bold text-navy">
+                Katalog Add-On Kuota, Perangkat keras (Hardware) &amp; Kru Lapangan
+              </h2>
+              <p className="mt-1 text-xs text-ink/70 max-w-3xl">
+                Pilih modul tambahan sesuai kebutuhan resepsi tanpa harus mengganti paket utama.
+                Tersedia kuota ekstra, sewa perangkat scanner/TV, kru penerima tamu, hingga kartu
+                fisik QR emboss emas.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {addOnsCatalog.map((addon) => (
+              <div
+                key={addon.code}
+                className="rounded-button border border-gold/25 bg-ivory/50 p-4 flex flex-col justify-between hover:border-gold transition"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center rounded-full bg-gold/15 border border-gold/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold-dark">
+                      {addon.category}
+                    </span>
+                  </div>
+                  <h3 className="mt-2.5 font-serif text-lg font-bold text-navy">{addon.name}</h3>
+                  <p className="mt-1 text-xs text-ink/70 leading-relaxed">{addon.description}</p>
+                  <p className="mt-1.5 text-[11px] text-gold-dark font-medium">
+                    ✓ {addon.deliverableNote}
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-border flex items-baseline justify-between">
+                  <span className="font-serif text-xl font-bold text-navy tabular-nums">
+                    {addon.priceFormatted}
+                  </span>
+                  <span className="text-[11px] font-medium text-ink/60">{addon.unitLabel}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </AppShell>
   );

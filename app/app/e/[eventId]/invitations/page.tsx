@@ -9,6 +9,7 @@ import {
 } from '@/lib/db/repository';
 import { AppShell } from '@/components/app/app-shell';
 import { Badge, EmptyState } from '@/components/ui/primitives';
+import { generateQrCodeDataUrl, generateQrCodeSvg } from '@/lib/qr/render';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,14 @@ export default async function EventInvitationsPage({
   const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
   const groups = listInvitationGroupsForEvent(user.userId, event.id) ?? [];
 
+  const groupsWithQr = await Promise.all(
+    groups.map(async (g) => ({
+      ...g,
+      qrSvg: await generateQrCodeSvg(g.qrTokenPreview),
+      qrPngUrl: await generateQrCodeDataUrl(g.qrTokenPreview),
+    }))
+  );
+
   return (
     <AppShell
       user={user}
@@ -41,28 +50,27 @@ export default async function EventInvitationsPage({
     >
       <div className="space-y-8">
         <div>
-          <Badge variant="gold">MODUL UNDANGAN DIGITAL &amp; KEAMANAN TOKEN (S10)</Badge>
+          <Badge variant="gold">MODUL UNDANGAN DIGITAL &amp; GENERATOR QR ASLI (S10)</Badge>
           <h1 className="mt-2 font-serif text-3xl font-bold text-navy">
-            Generator Undangan Digital &amp; Token QR Unik
+            Generator Undangan Digital &amp; Kartu QR Code Unik
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-ink/70 max-w-3xl">
-            Setiap grup tamu memiliki <strong>Token Tautan Publik</strong> (untuk membuka undangan
-            &amp; mengisi RSVP) dan <strong>Token QR Check-in</strong> yang terpisah. Jika tautan
-            tamu bocor, Anda dapat memutar ulang (rotate) tokennya dengan 1 klik.
+            Setiap grup tamu otomatis mendapatkan <strong>Gambar Matriks QR Code 2D Asli</strong>{' '}
+            yang siap dipindai kamera HP/scanner maupun diunduh (PNG) untuk dicetak pada kartu fisik.
           </p>
         </div>
 
         {searchParams?.rotated && (
           <div className="rounded-button border border-success/40 bg-success/10 p-3.5 text-xs font-bold text-success">
-            ✓ Token tautan publik &amp; kode QR tamu berhasil diputar ulang (versi lama otomatis
-            dinyatakan tidak berlaku)!
+            ✓ Token tautan publik &amp; gambar kode QR tamu berhasil diputar ulang (versi lama
+            otomatis dinyatakan tidak berlaku)!
           </div>
         )}
 
         <section className="rounded-card border border-gold/30 bg-surface p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-serif text-xl font-bold text-navy">
-              Daftar Tautan Undangan Individual &amp; Bagikan Manual WhatsApp ({groups.length})
+              Daftar Tautan Undangan, Gambar QR &amp; Share WhatsApp ({groupsWithQr.length})
             </h2>
             <Link
               href={`/app/e/${event.id}/guests`}
@@ -72,7 +80,7 @@ export default async function EventInvitationsPage({
             </Link>
           </div>
 
-          {groups.length === 0 ? (
+          {groupsWithQr.length === 0 ? (
             <EmptyState
               title="Belum Ada Tamu untuk Dibuatkan Undangan"
               description="Tambahkan grup tamu terlebih dahulu pada menu Daftar Tamu."
@@ -84,16 +92,16 @@ export default async function EventInvitationsPage({
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-border text-[11px] uppercase text-ink/60">
-                    <th className="py-3 pr-3">Penerima Undangan</th>
+                    <th className="py-3 pr-3">Gambar QR</th>
+                    <th className="py-3 px-3">Penerima Undangan</th>
                     <th className="py-3 px-3">Tautan Undangan Publik</th>
-                    <th className="py-3 px-3">Token QR Hari-H</th>
-                    <th className="py-3 px-3">Versi Token</th>
-                    <th className="py-3 pl-3 text-right">Aksi Bagikan &amp; Keamanan</th>
+                    <th className="py-3 px-3">Kode &amp; Versi</th>
+                    <th className="py-3 pl-3 text-right">Aksi Bagikan &amp; Unduh QR</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {groups.map((g) => {
-                    const waMessage = `Kepada Yth. ${g.displayName},\n\nTanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara pernikahan ${event.brideName} & ${event.groomName} (${event.eventDate} di ${event.venue}).\n\nSilakan buka tautan undangan khusus Anda & konfirmasi kehadiran (RSVP) melalui:\nhttps://sanstech-wedding-management-system.vercel.app/i/${g.publicTokenPreview}`;
+                  {groupsWithQr.map((g) => {
+                    const waMessage = `Kepada Yth. ${g.displayName},\n\nTanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara pernikahan ${event.brideName} & ${event.groomName} (${event.eventDate} di ${event.venue}).\n\nSilakan buka tautan undangan khusus Anda, lihat Kartu QR Check-in, & konfirmasi kehadiran (RSVP) melalui:\nhttps://sanstech-wedding-management-system.vercel.app/i/${g.publicTokenPreview}`;
 
                     const waHref = `https://wa.me/${
                       g.phoneOptional ? g.phoneOptional.replace(/^0/, '62') : ''
@@ -101,7 +109,15 @@ export default async function EventInvitationsPage({
 
                     return (
                       <tr key={g.id} className="hover:bg-ivory/50">
-                        <td className="py-3.5 pr-3">
+                        <td className="py-3 pr-3">
+                          <div className="h-16 w-16 rounded border border-navy/30 bg-white p-1 shadow-sm">
+                            <div
+                              className="w-full h-full [&>svg]:w-full [&>svg]:h-full"
+                              dangerouslySetInnerHTML={{ __html: g.qrSvg }}
+                            />
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-3">
                           <p className="font-bold text-navy">{g.displayName}</p>
                           <span className="text-[11px] text-ink/60">
                             {g.guestCategory.toUpperCase()} · Kuota {g.capacity} Orang
@@ -115,18 +131,23 @@ export default async function EventInvitationsPage({
                             /i/{g.publicTokenPreview}
                           </Link>
                         </td>
-                        <td className="py-3.5 px-3 font-mono text-xs font-bold text-navy">
-                          {g.qrTokenPreview}
-                        </td>
-                        <td className="py-3.5 px-3">
+                        <td className="py-3.5 px-3 font-mono text-xs">
+                          <span className="font-bold text-navy block">{g.qrTokenPreview}</span>
                           <Badge variant="outline">v{g.tokenVersion}</Badge>
                         </td>
-                        <td className="py-3.5 pl-3 text-right space-x-2">
+                        <td className="py-3.5 pl-3 text-right space-x-1.5">
+                          <a
+                            href={g.qrPngUrl}
+                            download={`QR-${g.qrTokenPreview}.png`}
+                            className="inline-flex items-center rounded border border-gold/50 bg-gold/15 px-2.5 py-1 text-xs font-bold text-navy hover:bg-gold/30"
+                          >
+                            Unduh PNG
+                          </a>
                           <Link
                             href={`/i/${g.publicTokenPreview}`}
                             className="inline-flex items-center rounded border border-navy/30 bg-ivory px-2.5 py-1 text-xs font-bold text-navy hover:bg-gold/15"
                           >
-                            Pratinjau Undangan
+                            Buka Undangan
                           </Link>
                           <a
                             href={waHref}
@@ -134,7 +155,7 @@ export default async function EventInvitationsPage({
                             rel="noopener noreferrer"
                             className="inline-flex items-center rounded bg-success px-2.5 py-1 text-xs font-bold text-white hover:opacity-90"
                           >
-                            Share WhatsApp
+                            Share WA
                           </a>
                           <form
                             action={`/api/events/${event.id}/guests`}
@@ -147,7 +168,7 @@ export default async function EventInvitationsPage({
                               type="submit"
                               className="rounded border border-danger/30 bg-danger/10 px-2.5 py-1 text-xs font-semibold text-danger hover:bg-danger hover:text-white transition"
                             >
-                              Putar Ulang Token
+                              Rotate QR
                             </button>
                           </form>
                         </td>

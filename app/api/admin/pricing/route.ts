@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUserServer } from '@/lib/auth/session';
 import { createAppError, getHttpStatusForError } from '@/lib/errors';
-import { updatePlatformPricingAndRetention } from '@/lib/plans';
+import { getAddOnsCatalog, updatePlatformPricingAndRetention } from '@/lib/plans';
 import { updateEventPlanByAdmin } from '@/lib/db/repository';
 import { PlanCode } from '@/lib/types';
 import { verifySameOriginMutation } from '@/lib/security/rate-limit';
@@ -16,7 +16,10 @@ export async function POST(request: Request) {
   const user = await getCurrentUserServer();
   if (!user || !user.isPlatformAdmin) {
     return NextResponse.json(
-      createAppError('FORBIDDEN', 'Hanya Super Admin yang memiliki akses ke pengaturan harga platform.'),
+      createAppError(
+        'FORBIDDEN',
+        'Hanya Super Admin pemilik platform yang memiliki akses ke pengaturan harga.'
+      ),
       { status: getHttpStatusForError('FORBIDDEN') }
     );
   }
@@ -43,20 +46,31 @@ export async function POST(request: Request) {
   const proPlusPriceIdr = Number(formData.get('proPlusPriceIdr') ?? 3490000);
   const gracePeriodDaysAfterEvent = Number(formData.get('gracePeriodDaysAfterEvent') ?? 14);
 
+  const addOnsPrices: Record<string, number> = {};
+  for (const addon of getAddOnsCatalog()) {
+    const rawVal = formData.get(`addon_${addon.code}`);
+    if (rawVal !== null) {
+      const parsed = Number(rawVal);
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        addOnsPrices[addon.code] = parsed;
+      }
+    }
+  }
+
   updatePlatformPricingAndRetention({
     proPriceIdr,
     proPlusPriceIdr,
     gracePeriodDaysAfterEvent,
+    addOnsPrices,
   });
 
   return NextResponse.redirect(
     new URL(
       `/admin?notice=${encodeURIComponent(
-        'Harga paket & aturan masa aktif akun pasca-acara berhasil diperbarui!'
+        'Harga paket utama, harga 10 layanan Add-On, & masa aktif akun pasca-acara berhasil diperbarui!'
       )}`,
       request.url
     ),
     303
   );
 }
-

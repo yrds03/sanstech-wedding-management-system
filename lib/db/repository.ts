@@ -80,7 +80,7 @@ export const DEMO_USERS: Record<string, UserProfile> = {
     email: 'owner@sanstech-wo.id',
     displayName: 'Raka Pratama (Owner SANSTECH WO)',
     phoneOptional: '081234567890',
-    isPlatformAdmin: true, // Memudahkan Anda mengatur harga & lisensi sekaligus menguji WO
+    isPlatformAdmin: false, // Dipisahkan agar klien/WO biasa tidak melihat tombol Pengaturan Harga Super Admin
   },
   'user-couple-andi': {
     userId: 'user-couple-andi',
@@ -99,7 +99,7 @@ export const DEMO_USERS: Record<string, UserProfile> = {
   'user-platform-admin': {
     userId: 'user-platform-admin',
     email: 'superadmin@sanstech.id',
-    displayName: 'Super Admin SANSTECH',
+    displayName: 'Super Admin SANSTECH (Pemilik Sistem)',
     isPlatformAdmin: true,
   },
 };
@@ -1159,6 +1159,44 @@ export function getPublicInvitationByToken(rawToken: string): {
   const event = store.events.find((e) => e.id === group.eventId);
   if (!event) return null;
   return { event, group };
+}
+
+/**
+ * Mengambil state layar sambutan TV/LED secara aman tanpa membocorkan catatan privat.
+ * Jika eventId tidak ditemukan di memori serverless (mis. acara baru dibuat di tab lain),
+ * otomatis menyediakan fallback tampilan sambutan elegan agar TV Ballroom TIDAK PERNAH 404.
+ */
+export function getDisplayScreenState(sessionIdOrEventId: string): {
+  event: EventSummary;
+  latestPublicWelcome: InvitationGroupDetail | null;
+  totalCheckedInPersons: number;
+  lastUpdatedIso: string;
+} {
+  const store = getStore();
+  const cleanId = sessionIdOrEventId.trim();
+
+  let event = store.events.find((e) => e.id === cleanId);
+  if (!event) {
+    // Fallback ke acara utama agar layar TV tetap hidup meskipun serverless cold-start
+    event = store.events[0]!;
+  }
+
+  recalculateEventMetrics(event.id);
+  const groups = store.invitationGroups.filter((g) => g.eventId === event!.id);
+  const ledger = store.checkinLedger.filter((l) => l.eventId === event!.id);
+
+  const latestPublicWelcome =
+    ledger
+      .filter((l) => l.deltaAttendees > 0)
+      .map((l) => groups.find((g) => g.id === l.invitationGroupId))
+      .find((g): g is InvitationGroupDetail => Boolean(g && g.allowedPublicDisplay)) ?? null;
+
+  return {
+    event,
+    latestPublicWelcome,
+    totalCheckedInPersons: event.metrics.checkedInPersonsCount,
+    lastUpdatedIso: new Date().toISOString(),
+  };
 }
 
 export function submitPublicRsvpByToken(params: {
