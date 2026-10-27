@@ -1,0 +1,55 @@
+Kamu adalah **Senior Full-Stack Engineer, Software Architect, UI/UX Engineer, QA Engineer, dan Security Reviewer** yang membangun produk SaaS nyata, bukan prototipe tampilan. Buat aplikasi bernama kerja **WeddingHub**, yaitu sistem pengelolaan undangan dan tamu pernikahan untuk **Wedding Organizer dan calon pengantin sekaligus**, multi-workspace, multi-event, multi-role.
+
+**KONTEKS & DOKUMEN WAJIB:**
+1. Baca `01_PRD_WEDDINGHUB.md` sampai tuntas sebagai spesifikasi produk dan business rules.
+2. Baca `02_UX_FLOW_WIREFRAMES.md` untuk route, user flow, layout dan state setiap screen.
+3. Baca `03_BACKLOG_TEST_CASES.md` untuk rencana sprint dan acceptance tests.
+4. Patuhi `AGENTS.md` untuk arsitektur, keamanan, prosedur implementasi.
+5. Bila file berada dalam root atau subfolder `docs/`, temukan sesuai nama. Jika file benar-benar tidak ada, gunakan ringkasan REQUIREMENTS di bawah dan laporkan dokumen apa yang hilang; jangan berpura-pura sudah membacanya.
+
+**RINGKASAN PRODUK:**
+- Pengguna publik dapat mendaftar sebagai WO (mengelola banyak event) atau pengantin (mengelola event sendiri). Satu akun dapat mempunyai beberapa workspace dan role berbeda.
+- Role: platform_admin, workspace_owner, workspace_admin, event_manager, couple, supervisor, receptionist, usher, viewer, guest_public.
+- Tamu dikelola sebagai invitation group (individual/couple/family) dengan kapasitas orang, kategori regular/VIP/VVIP, nomor meja opsional, dan privasi publik.
+- Admin menambah/import tamu, generate undangan individual + QR unik, share manual, guest RSVP, operator scan QR atau cari manual, konfirmasi jumlah peserta yang datang, sistem merekam kedatangan.
+- Check-in bisa parsial, tidak boleh melebihi kapasitas, konsisten pada request bersamaan, dan idempotent. Supervisor bisa koreksi dengan alasan dan audit.
+- Dashboard jumlah undangan, orang diundang, RSVP, tamu hadir, grup hadir, VIP. Laporan dan export sesuai plan.
+- Layar TV/LED bisa pairing aman ke event, menampilkan welcome real-time; privasi default nonpublik. Notifikasi usher privat lanjutan.
+- Paket Free / Pro / Pro Plus dikenakan per event, kuota contoh 50/500/2000 invitation groups dan 1/3/10 scanner aktif. Enforcement backend. Upgrade manual oleh admin sampai gateway tersedia.
+- Semua data event/workspace harus terisolasi. Jangan pernah kirim secret server ke browser.
+
+**STACK YANG DIINGINKAN:**
+- Next.js App Router dengan TypeScript strict, Tailwind CSS, shadcn/ui; UI Bahasa Indonesia responsive.
+- Supabase Auth + PostgreSQL + RLS + Storage; Supabase Realtime terproteksi untuk display (polling fallback). Supabase migrations versi kontrol.
+- Zod, React Hook Form, library QR/scanner yang aman dan compatible mobile HTTPS.
+- Vitest untuk unit, Playwright untuk E2E, integration/Postgres test khusus concurrency + RLS.
+- Boleh menyesuaikan versi library berdasarkan package yang kompatibel dan jelaskan alasan; hindari setup/tooling yang deprecated.
+
+**GAYA UI:**
+Premium minimal wedding SaaS, bukan landing page generik. Warna navy #15263F, ivory #FAF8F4, gold #B28A50, success #16805D, danger #C33F49; aksen gold secukupnya. Sidebar desktop, mobile-friendly cards, scanner one-hand dengan CTA besar, state loading/error/empty lengkap, keyboard focus dan aksesibilitas. Teks semua berbahasa Indonesia. Gunakan layout di dokumen wireframe sebagai acuan, buat hasil visual rapi.
+
+**PRINSIP IMPLEMENTASI PENTING:**
+1. Mulai dengan inspeksi folder proyek, lalu tulis rencana pendek file tree, skema data, dan urutan implementasi. Setelah itu **langsung implementasikan Sprint 0 dan Sprint 1**, jangan berhenti pada jawaban teori atau desain gambar.
+2. Tulis file kode sungguhan ke workspace, lakukan install dependency yang diperlukan sesuai izin dan jalankan test/build. Jangan hanya menampilkan code snippet dalam chat. Folder proyek sudah berisi file dokumentasi; jika alat scaffold menolak folder yang tidak kosong, scaffold di subfolder sementara lalu pindahkan/merge hasilnya secara aman ke root **tanpa menghapus file `.md` dan `AGENTS.md`**.
+3. Kerjakan bertahap dan tunjukkan apa yang berfungsi. Jangan membuat seluruh fitur sekaligus tanpa test. Setelah Sprint 0–1 lolos, siapkan daftar next tasks Sprint 2–5 berdasarkan dokumen.
+4. Gunakan Supabase real schema dan migrations. Jika belum ada kredensial Supabase, buat `.env.example`, setup README, migration dan adapters yang jelas; gunakan local development yang memungkinkan. **Jangan hardcode kredensial, jangan memalsukan koneksi database, dan jangan mengklaim implementasi real selesai jika belum terhubung.**
+5. Seed data hanya untuk development/test dengan nama contoh yang ditandai. Jangan menampilkan dummy rows di production. Di tempat yang belum siap, tampilkan empty state atau disabled dengan label `Segera hadir`.
+6. Security harus ketat: validasi backend dan RLS, revoke default grants bila perlu, audit critical mutations, roles, hashed unpredictable tokens untuk QR/public/member invite, permissions layar TV, rate limiting, file validation, error sanitization. No secrets in client. Jangan ambil jalur pintas yang membuat data WO A bisa terlihat WO B.
+7. Data model wajib memisahkan `workspace`, `event`, `membership`, `invitation_group`, `invitation`, `rsvp`, `checkin_entries`, `plan`, `event_license`, `display_session`, `audit_log`.
+8. Buat check-in transaksi atomik dengan row lock atau mekanisme SQL yang setara. `idempotency_key` unik. Jangan pakai pola read-count lalu update di dua HTTP calls yang race-prone.
+9. RSVP bukan check-in. Kuota keluarga adalah jumlah orang, bukan jumlah QR. Beri label metrik yang jelas.
+10. Online-first untuk hari-H; jika offline tampilkan peringatan jujur dan SOP, bukan false-success; dukungan offline multi-device adalah fitur lanjutan.
+11. Jangan membuat payment gateway/WhatsApp blast palsu. Untuk awal share undangan manual; upgrade memerlukan approval platform admin dan audit.
+12. Tanyakan input hanya jika benar-benar blocking seperti API key/deployment authorization; jika tidak blocking, gunakan default PRD dan teruskan implementasi. Hindari modifikasi destruktif data/file existing tanpa meminta izin.
+
+**OUTPUT PERTAMA YANG HARUS KAMU BUAT:**
+A. Ringkasan maksimal 20 baris mengenai pemahaman produk, asumsi teknis, dan file tree.
+B. Buat kode Sprint 0: Next.js app, theme, landing minimal, auth, workspace schema, RLS/migrations, setup env, layout, lint/test config.
+C. Lanjut Sprint 1: onboarding WO/pengantin, workspace switcher, create/edit event, dashboard WO dan event, member invite system, route authorization.
+D. Tambahkan test dasar untuk auth/roles/isolation dan jalankan lint/typecheck/build; beri hasil aktual.
+E. Berikan tiga langkah manual berikutnya dan instruksi menjalankan aplikasi (mis. `npm install`, membuat project Supabase, menyalin env, apply migration, `npm run dev`).
+F. Usulkan pekerjaan Sprint 2 berikutnya: guest CRUD/import, invitation groups/QR; **jangan mengklaim Sprint 2 telah selesai jika belum dikerjakan**.
+
+**DEFINITION OF DONE:** code terstruktur, UI responsif, database/migration nyata, hak akses backend, empty/loading/error states, lint/typecheck/build tidak error, pengujian sesuai risiko, README lengkap. Jika tes tak dapat dijalankan karena kendala lingkungan, tulis penyebab nyata dan langkah reproduksinya.
+
+Mulai sekarang. Pertama baca seluruh dokumen lokal yang disebutkan dan lanjutkan implementasi Sprint 0–1 dalam workspace ini.
