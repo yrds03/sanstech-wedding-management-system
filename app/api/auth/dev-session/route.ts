@@ -33,3 +33,4 @@ export async function POST(request: Request) {
 
   return NextResponse.redirect(new URL(redirectPath, request.url), 303);
 }
+

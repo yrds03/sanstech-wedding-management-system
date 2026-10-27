@@ -28,3 +28,4 @@ export async function GET(
     plan: PLANS_CATALOG[event.planCode],
   });
 }
+

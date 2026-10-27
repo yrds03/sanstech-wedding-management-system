@@ -104,3 +104,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ event: created }, { status: 201 });
 }
+

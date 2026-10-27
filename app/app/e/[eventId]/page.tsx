@@ -215,3 +215,4 @@ export default async function EventOverviewPage({
     </AppShell>
   );
 }
+

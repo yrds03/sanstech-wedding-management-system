@@ -10,3 +10,4 @@ export default createSprintPlaceholderPage({
     'Status penanganan tamu kehormatan (Pending, Seen, Acknowledged).',
   ],
 });
+

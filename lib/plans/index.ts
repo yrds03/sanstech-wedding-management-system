@@ -136,3 +136,4 @@ export function canStartScannerSession(planCode: PlanCode, activeSessionsCount: 
   }
   return { allowed: true, limit };
 }
+

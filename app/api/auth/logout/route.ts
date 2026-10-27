@@ -19,3 +19,4 @@ export async function POST(request: Request) {
 
   return NextResponse.redirect(new URL('/auth/login', request.url), 303);
 }
+

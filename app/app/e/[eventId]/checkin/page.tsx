@@ -12,3 +12,4 @@ export default createSprintPlaceholderPage({
     'Peringatan jujur dan SOP manual apabila koneksi internet gedung terputus.',
   ],
 });
+

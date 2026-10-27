@@ -18,3 +18,4 @@ Dokumen ini mencatat keputusan arsitektur, produk, dan penyesuaian implementasi 
 - **Keputusan:**
   1. Seluruh skema tabel, indeks, constraint, fungsi atomik check-in (`perform_atomic_checkin`, `perform_checkin_correction`), dan kebijakan RLS ditulis lengkap pada `supabase/migrations/20261027000001_initial_schema_and_rls.sql`.
   2. Ketika variabel environment Supabase belum dikonfigurasi oleh developer/pengguna, aplikasi menampilkan banner status konfigurasi yang jujur dan menyediakan repositori pengujian terisolasi untuk memverifikasi alur UI/RBAC/validasi pada lingkungan pengembangan lokal/demo tanpa mengklaim terhubung ke database produksi.
+

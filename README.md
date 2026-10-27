@@ -78,3 +78,4 @@ Repositori Git lokal pada folder ini sudah diinisialisasi dan seluruh perubahan 
    git push -u origin main
    ```
 3. Untuk langsung dibagikan ke tim WO agar bisa diuji lewat HP/laptop, hubungkan repository GitHub tersebut ke **Vercel** (gratis), masukkan variabel `.env.local` Anda di pengaturan Vercel, dan klik **Deploy**.
+

@@ -755,3 +755,4 @@ ON CONFLICT (code) DO UPDATE SET
   limits = EXCLUDED.limits,
   features = EXCLUDED.features,
   price_idr = EXCLUDED.price_idr;
+

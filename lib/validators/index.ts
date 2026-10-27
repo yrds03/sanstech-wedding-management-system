@@ -163,3 +163,4 @@ export const checkinCorrectionRequestSchema = z.object({
     .max(250, 'Alasan koreksi maksimal 250 karakter.'),
   idempotencyKey: z.string().uuid('Idempotency key wajib berupa UUID.'),
 });
+

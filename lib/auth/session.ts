@@ -66,3 +66,4 @@ export async function requireAuthenticatedUser(redirectToPath?: string): Promise
   }
   return user;
 }
+

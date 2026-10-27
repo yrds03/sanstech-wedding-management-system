@@ -813,3 +813,4 @@ export function listAuditLogsForEvent(userId: string, eventId: string): AuditLog
   const store = getStore();
   return store.auditLogs.filter((log) => log.eventId === eventId);
 }
+

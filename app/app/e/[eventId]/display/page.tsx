@@ -10,3 +10,4 @@ export default createSprintPlaceholderPage({
     'Pengaturan durasi sambutan 5–15 detik (default 8 detik) dan mode privasi.',
   ],
 });
+

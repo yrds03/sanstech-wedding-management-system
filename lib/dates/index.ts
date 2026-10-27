@@ -33,3 +33,4 @@ export function formatCurrencyIdr(amount: number): string {
     maximumFractionDigits: 0,
   }).format(amount);
 }
+

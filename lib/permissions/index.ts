@@ -192,3 +192,4 @@ export const ROLE_LABELS_ID: Record<EffectiveRole, string> = {
   viewer: 'Pengamat Laporan',
   guest_public: 'Tamu Undangan',
 };
+

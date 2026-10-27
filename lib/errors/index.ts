@@ -66,3 +66,4 @@ export function getHttpStatusForError(code: AppErrorCode): number {
       return 500;
   }
 }
+
