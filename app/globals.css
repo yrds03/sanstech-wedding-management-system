@@ -2,25 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 @layer base {
   :root {
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-serif: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
   }
 
   body {
-    @apply bg-ivory text-ink antialiased selection:bg-gold/20 selection:text-navy;
+    @apply bg-ivory text-ink antialiased selection:bg-gold/25 selection:text-navy;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
-  /* Tabular numerals untuk angka kuota, RSVP, check-in, dan harga (UX Wireframe Bab 3) */
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
 
-  /* High-contrast visible keyboard focus (WCAG AA) */
   *:focus-visible {
-    @apply outline-none ring-2 ring-navy ring-offset-2 ring-offset-ivory;
+    @apply outline-none ring-2 ring-gold ring-offset-2 ring-offset-ivory;
   }
 }
 
+/* Luxury Print Stylesheet untuk Buku Pedoman Penggunaan (/panduan) */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-page-break {
+    page-break-before: always;
+  }
+  .print-card {
+    box-shadow: none !important;
+    border: 1px solid #cccccc !important;
+    break-inside: avoid;
+  }
+}

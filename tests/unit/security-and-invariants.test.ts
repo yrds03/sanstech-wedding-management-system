@@ -14,8 +14,16 @@ import {
   revokeEventMemberInvite,
 } from '@/lib/db/repository';
 import { evaluateCheckinTransaction } from '@/lib/db/ledger';
-import { canAddInvitationGroup, canStartScannerSession } from '@/lib/plans';
+import {
+  canAddInvitationGroup,
+  canStartScannerSession,
+  evaluateEventPostLifecycle,
+  getPlansCatalog,
+  updatePlatformPricingAndRetention,
+} from '@/lib/plans';
 import { sanitizeSpreadsheetCell } from '@/lib/qr/tokens';
+import { checkRateLimit } from '@/lib/security/rate-limit';
+import { purgeEventTestingData } from '@/lib/db/repository';
 
 describe('SANSTECH Wedding Management System — Sprint 0 & 1 Security, RBAC & Isolation Suite', () => {
   beforeEach(() => {
@@ -185,6 +193,49 @@ describe('SANSTECH Wedding Management System — Sprint 0 & 1 Security, RBAC & I
         eventRole: 'couple',
       })
     ).toBe('couple');
+  });
+
+  it('Pricing, Post-Event Grace Period Lifecycle & Testing Data Purge: Mengatur harga, masa aktif H+N, dan hapus data testing', () => {
+    updatePlatformPricingAndRetention({
+      proPriceIdr: 2500000,
+      proPlusPriceIdr: 5500000,
+      gracePeriodDaysAfterEvent: 14,
+    });
+
+    const catalog = getPlansCatalog();
+    expect(catalog.pro.priceIdr).toBe(2500000);
+    expect(catalog.pro_plus.priceIdr).toBe(5500000);
+
+    // Uji masa tenggang H+5 (masih dalam 14 hari -> read-only laporan)
+    const graceState = evaluateEventPostLifecycle({
+      eventDate: '2026-10-10',
+      planCode: 'pro',
+      referenceDateStr: '2026-10-15',
+    });
+    expect(graceState.phase).toBe('grace_period_readonly');
+    expect(graceState.canMutateGuestsOrCheckin).toBe(false);
+    expect(graceState.canViewAndDownloadReport).toBe(true);
+
+    // Uji lewat H+20 (> 14 hari -> terkunci otomatis)
+    const expiredState = evaluateEventPostLifecycle({
+      eventDate: '2026-10-01',
+      planCode: 'pro',
+      referenceDateStr: '2026-10-25',
+    });
+    expect(expiredState.phase).toBe('expired_locked');
+    expect(expiredState.canViewAndDownloadReport).toBe(false);
+
+    // Uji hapus seluruh data testing pada acara
+    const purgeRes = purgeEventTestingData({
+      userId: 'user-wo-a',
+      eventId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      mode: 'delete_all_test_guests',
+    });
+    expect(purgeRes.ok).toBe(true);
+
+    // Uji Rate Limiter
+    const rl = checkRateLimit({ key: 'test-ip', limit: 2, windowMs: 10000 });
+    expect(rl.allowed).toBe(true);
   });
 });
 

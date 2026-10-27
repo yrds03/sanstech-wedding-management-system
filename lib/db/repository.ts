@@ -1,30 +1,25 @@
 import {
   AuditLogItem,
+  CheckinLogViewItem,
+  CheckinMethod,
   EffectiveRole,
   EventRole,
   EventStatus,
   EventSummary,
+  GuestCategory,
+  InvitationGroupDetail,
+  InvitationGroupType,
   MemberInviteItem,
+  PlanCode,
+  RsvpStatus,
   UserProfile,
   WorkspaceRole,
   WorkspaceSummary,
   WorkspaceType,
 } from '@/lib/types';
-import { resolveEffectiveEventRole } from '@/lib/permissions';
+import { hasPermission, resolveEffectiveEventRole } from '@/lib/permissions';
+import { canAddInvitationGroup } from '@/lib/plans';
 import { generateOpaqueToken, hashOpaqueToken } from '@/lib/qr/tokens';
-
-/**
- * Repositori Pengembangan Lokal (Development Seed & In-Memory Store)
- * ----------------------------------------------------------------------------
- * Digunakan HANYA ketika pengembangan lokal (`NODE_ENV !== 'production'`) belum
- * memiliki koneksi Supabase aktif, atau untuk pengujian integrasi isolasi multi-tenant
- * (Tenant WO A vs WO B vs Couple).
- *
- * Sesuai AGENTS.md:
- * - Tidak menampilkan dummy rows secara diam-diam di production.
- * - Setiap data contoh ditandai secara eksplisit dengan label `[CONTOH DEV]`.
- * - Menegakkan isolasi akses per user, workspace, dan event secara ketat di sisi server.
- */
 
 interface InternalWorkspaceRecord {
   id: string;
@@ -73,6 +68,8 @@ interface StoreState {
   workspaceMemberships: InternalWorkspaceMembership[];
   events: EventSummary[];
   eventMemberships: InternalEventMembership[];
+  invitationGroups: InvitationGroupDetail[];
+  checkinLedger: CheckinLogViewItem[];
   invites: InternalInviteRecord[];
   auditLogs: AuditLogItem[];
 }
@@ -83,7 +80,7 @@ export const DEMO_USERS: Record<string, UserProfile> = {
     email: 'owner@sanstech-wo.id',
     displayName: 'Raka Pratama (Owner SANSTECH WO)',
     phoneOptional: '081234567890',
-    isPlatformAdmin: false,
+    isPlatformAdmin: true, // Memudahkan Anda mengatur harga & lisensi sekaligus menguji WO
   },
   'user-couple-andi': {
     userId: 'user-couple-andi',
@@ -102,32 +99,112 @@ export const DEMO_USERS: Record<string, UserProfile> = {
   'user-platform-admin': {
     userId: 'user-platform-admin',
     email: 'superadmin@sanstech.id',
-    displayName: 'Platform Admin SANSTECH',
+    displayName: 'Super Admin SANSTECH',
     isPlatformAdmin: true,
   },
 };
 
-function createInitialDevState(): StoreState {
-  const isProd = process.env.NODE_ENV === 'production';
-  if (isProd) {
-    return {
-      users: {},
-      workspaces: [],
-      workspaceMemberships: [],
-      events: [],
-      eventMemberships: [],
-      invites: [],
-      auditLogs: [],
-    };
-  }
+function createInitialGuestSamples(): InvitationGroupDetail[] {
+  const eventA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  return [
+    {
+      id: 'grp-vvip-budi',
+      eventId: eventA,
+      displayName: 'Bapak Budi Santoso & Ibu [DATA TESTING]',
+      phoneOptional: '081199887766',
+      type: 'couple',
+      capacity: 2,
+      guestCategory: 'vvip',
+      tableLabelOptional: 'Meja VVIP 01',
+      notesPrivateOptional: 'Komisaris Utama — Jemput di Lobby Utama',
+      allowedPublicDisplay: true,
+      rsvpStatus: 'attending',
+      rsvpCount: 2,
+      rsvpNote: 'Selamat berbahagia untuk Andi & Putri!',
+      checkedInCount: 0,
+      remainingCapacity: 2,
+      qrTokenPreview: 'QR-ANDI-VVIP-001',
+      publicTokenPreview: 'inv-andi-putri-budi-santoso',
+      tokenVersion: 1,
+      isTestData: true,
+      createdAt: '2026-10-25T10:00:00.000Z',
+    },
+    {
+      id: 'grp-vip-hendra',
+      eventId: eventA,
+      displayName: 'Keluarga Besar Dr. Hendra Wijaya [DATA TESTING]',
+      phoneOptional: '081233445566',
+      type: 'family',
+      capacity: 4,
+      guestCategory: 'vip',
+      tableLabelOptional: 'Meja VIP 03',
+      notesPrivateOptional: 'Tamu penting tidak ingin nama tampil di layar TV',
+      allowedPublicDisplay: false,
+      rsvpStatus: 'attending',
+      rsvpCount: 4,
+      rsvpNote: 'Kami hadir berempat bersama keluarga.',
+      checkedInCount: 2,
+      remainingCapacity: 2,
+      qrTokenPreview: 'QR-ANDI-VIP-002',
+      publicTokenPreview: 'inv-andi-putri-hendra-wijaya',
+      tokenVersion: 1,
+      isTestData: true,
+      createdAt: '2026-10-25T11:00:00.000Z',
+    },
+    {
+      id: 'grp-reg-siti',
+      eventId: eventA,
+      displayName: 'Siti Rahmawati [DATA TESTING]',
+      phoneOptional: '081377889900',
+      type: 'individual',
+      capacity: 1,
+      guestCategory: 'regular',
+      tableLabelOptional: 'Meja Melati 08',
+      notesPrivateOptional: 'Sahabat kuliah mempelai wanita',
+      allowedPublicDisplay: true,
+      rsvpStatus: 'attending',
+      rsvpCount: 1,
+      checkedInCount: 0,
+      remainingCapacity: 1,
+      qrTokenPreview: 'QR-ANDI-REG-003',
+      publicTokenPreview: 'inv-andi-putri-siti-rahma',
+      tokenVersion: 1,
+      isTestData: true,
+      createdAt: '2026-10-25T12:00:00.000Z',
+    },
+  ];
+}
 
-  return {
+function createInitialCheckinSamples(): CheckinLogViewItem[] {
+  return [
+    {
+      id: 'chk-sample-1',
+      eventId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      invitationGroupId: 'grp-vip-hendra',
+      guestDisplayName: 'Keluarga Besar Dr. Hendra Wijaya [DATA TESTING]',
+      guestCategory: 'vip',
+      tableLabelOptional: 'Meja VIP 03',
+      actorName: 'Petugas Gate A (Simulasi)',
+      deltaAttendees: 2,
+      method: 'qr',
+      reasonNullable: null,
+      idempotencyKey: '99999999-9999-4999-8999-999999999999',
+      createdAt: '2026-10-27T11:30:00.000Z',
+    },
+  ];
+}
+
+function createInitialDevState(): StoreState {
+  const initialGroups = createInitialGuestSamples();
+  const initialLedger = createInitialCheckinSamples();
+
+  const state: StoreState = {
     users: { ...DEMO_USERS },
     workspaces: [
       {
         id: '11111111-1111-4111-8111-111111111111',
         type: 'wo',
-        name: 'SANSTECH Signature Organizer [CONTOH DEV]',
+        name: 'SANSTECH Signature Organizer',
         slug: 'sanstech-signature-wo',
         ownerUserId: 'user-wo-a',
         createdAt: '2026-10-20T08:00:00.000Z',
@@ -135,7 +212,7 @@ function createInitialDevState(): StoreState {
       {
         id: '22222222-2222-4222-8222-222222222222',
         type: 'personal',
-        name: 'Pernikahan Andi & Putri [CONTOH DEV]',
+        name: 'Pernikahan Andi & Putri',
         slug: 'pernikahan-andi-putri',
         ownerUserId: 'user-couple-andi',
         createdAt: '2026-10-21T09:00:00.000Z',
@@ -143,7 +220,7 @@ function createInitialDevState(): StoreState {
       {
         id: '33333333-3333-4333-8333-333333333333',
         type: 'wo',
-        name: 'Lusiana Wedding Planner (Tenant B) [CONTOH DEV]',
+        name: 'Lusiana Wedding Planner (Tenant B)',
         slug: 'lusiana-wedding-planner',
         ownerUserId: 'user-wo-b',
         createdAt: '2026-10-22T10:00:00.000Z',
@@ -173,16 +250,16 @@ function createInitialDevState(): StoreState {
       {
         id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         workspaceId: '11111111-1111-4111-8111-111111111111',
-        workspaceName: 'SANSTECH Signature Organizer [CONTOH DEV]',
+        workspaceName: 'SANSTECH Signature Organizer',
         workspaceType: 'wo',
-        title: 'Resepsi Andi & Putri [CONTOH DEV]',
+        title: 'Royal Reception Andi & Putri',
         brideName: 'Putri Maharani',
         groomName: 'Andi Wijaya',
         eventDate: '2026-11-20',
         startTime: '18:30',
         endTime: '21:30',
         timezone: 'Asia/Jakarta',
-        venue: 'Grand Ballroom Hotel Mulia',
+        venue: 'Grand Ballroom Hotel Mulia Senayan',
         address: 'Jl. Asia Afrika, Senayan',
         city: 'Jakarta Pusat',
         status: 'published',
@@ -190,21 +267,21 @@ function createInitialDevState(): StoreState {
         licenseStatus: 'active',
         myEffectiveRole: 'workspace_owner',
         metrics: {
-          invitationGroupsCount: 145,
-          invitedCapacityTotal: 310,
-          rsvpAttendingCount: 248,
-          checkedInPersonsCount: 0,
-          checkedInGroupsCount: 0,
-          vipCheckedInCount: 0,
-          vipTotalCount: 18,
+          invitationGroupsCount: 3,
+          invitedCapacityTotal: 7,
+          rsvpAttendingCount: 7,
+          checkedInPersonsCount: 2,
+          checkedInGroupsCount: 1,
+          vipCheckedInCount: 1,
+          vipTotalCount: 2,
         },
       },
       {
         id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
         workspaceId: '11111111-1111-4111-8111-111111111111',
-        workspaceName: 'SANSTECH Signature Organizer [CONTOH DEV]',
+        workspaceName: 'SANSTECH Signature Organizer',
         workspaceType: 'wo',
-        title: 'Intimate Wedding Dimas & Intan [CONTOH DEV]',
+        title: 'Intimate Garden Wedding Dimas & Intan',
         brideName: 'Intan Permata',
         groomName: 'Dimas Prakoso',
         eventDate: '2026-12-05',
@@ -219,21 +296,21 @@ function createInitialDevState(): StoreState {
         licenseStatus: 'active',
         myEffectiveRole: 'workspace_owner',
         metrics: {
-          invitationGroupsCount: 32,
-          invitedCapacityTotal: 64,
-          rsvpAttendingCount: 40,
+          invitationGroupsCount: 0,
+          invitedCapacityTotal: 0,
+          rsvpAttendingCount: 0,
           checkedInPersonsCount: 0,
           checkedInGroupsCount: 0,
           vipCheckedInCount: 0,
-          vipTotalCount: 5,
+          vipTotalCount: 0,
         },
       },
       {
         id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
         workspaceId: '33333333-3333-4333-8333-333333333333',
-        workspaceName: 'Lusiana Wedding Planner (Tenant B) [CONTOH DEV]',
+        workspaceName: 'Lusiana Wedding Planner (Tenant B)',
         workspaceType: 'wo',
-        title: 'Royal Wedding Kevin & Clarissa (Tenant B) [CONTOH DEV]',
+        title: 'Royal Wedding Kevin & Clarissa (Tenant B)',
         brideName: 'Clarissa',
         groomName: 'Kevin',
         eventDate: '2026-12-12',
@@ -248,18 +325,17 @@ function createInitialDevState(): StoreState {
         licenseStatus: 'active',
         myEffectiveRole: 'workspace_owner',
         metrics: {
-          invitationGroupsCount: 210,
-          invitedCapacityTotal: 420,
-          rsvpAttendingCount: 380,
+          invitationGroupsCount: 0,
+          invitedCapacityTotal: 0,
+          rsvpAttendingCount: 0,
           checkedInPersonsCount: 0,
           checkedInGroupsCount: 0,
           vipCheckedInCount: 0,
-          vipTotalCount: 25,
+          vipTotalCount: 0,
         },
       },
     ],
     eventMemberships: [
-      // Andi & Putri diundang sebagai 'couple' HANYA pada acara aaaaaaaa-... milik WO A
       {
         eventId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         userId: 'user-couple-andi',
@@ -267,6 +343,8 @@ function createInitialDevState(): StoreState {
         status: 'active',
       },
     ],
+    invitationGroups: initialGroups,
+    checkinLedger: initialLedger,
     invites: [
       {
         id: 'inv-sample-1',
@@ -294,11 +372,14 @@ function createInitialDevState(): StoreState {
         action: 'event.created',
         entityType: 'event',
         entityId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        summary: 'Membuat acara Resepsi Andi & Putri dan mengundang pasangan sebagai kolaborator.',
+        summary:
+          'Membuat acara Royal Reception Andi & Putri dan mengundang pasangan sebagai kolaborator.',
         createdAt: '2026-10-25T14:20:00.000Z',
       },
     ],
   };
+
+  return state;
 }
 
 const globalForStore = globalThis as unknown as { __sanstechStore?: StoreState };
@@ -308,6 +389,39 @@ function getStore(): StoreState {
     globalForStore.__sanstechStore = createInitialDevState();
   }
   return globalForStore.__sanstechStore;
+}
+
+function recalculateEventMetrics(eventId: string): void {
+  const store = getStore();
+  const ev = store.events.find((e) => e.id === eventId);
+  if (!ev) return;
+
+  const groups = store.invitationGroups.filter((g) => g.eventId === eventId);
+  const ledger = store.checkinLedger.filter((l) => l.eventId === eventId);
+
+  for (const g of groups) {
+    const sum = ledger
+      .filter((l) => l.invitationGroupId === g.id)
+      .reduce((acc, item) => acc + item.deltaAttendees, 0);
+    g.checkedInCount = Math.max(0, sum);
+    g.remainingCapacity = Math.max(0, g.capacity - g.checkedInCount);
+  }
+
+  ev.metrics = {
+    invitationGroupsCount: groups.length,
+    invitedCapacityTotal: groups.reduce((acc, g) => acc + g.capacity, 0),
+    rsvpAttendingCount: groups
+      .filter((g) => g.rsvpStatus === 'attending')
+      .reduce((acc, g) => acc + g.rsvpCount, 0),
+    checkedInPersonsCount: groups.reduce((acc, g) => acc + g.checkedInCount, 0),
+    checkedInGroupsCount: groups.filter((g) => g.checkedInCount > 0).length,
+    vipCheckedInCount: groups.filter(
+      (g) => (g.guestCategory === 'vip' || g.guestCategory === 'vvip') && g.checkedInCount > 0
+    ).length,
+    vipTotalCount: groups.filter(
+      (g) => g.guestCategory === 'vip' || g.guestCategory === 'vvip'
+    ).length,
+  };
 }
 
 export function resetDevStoreForTests(): void {
@@ -364,7 +478,6 @@ export function createWorkspaceForUser(params: {
 }): { workspace: WorkspaceSummary; createdNew: boolean } {
   const store = getStore();
 
-  // Cek idempotency key agar refresh halaman tidak membuat workspace duplikat (FLOW-01 / S1-01)
   const existingByIdempotency = store.workspaces.find(
     (w) => w.ownerUserId === params.userId && w.idempotencyKey === params.idempotencyKey
   );
@@ -373,7 +486,6 @@ export function createWorkspaceForUser(params: {
     if (summary) return { workspace: summary, createdNew: false };
   }
 
-  // Pastikan slug unik
   const slugCollision = store.workspaces.find((w) => w.slug === params.slug);
   const finalSlug = slugCollision
     ? `${params.slug}-${Math.random().toString(36).slice(2, 6)}`
@@ -426,10 +538,18 @@ export function getAuthorizedEventsForWorkspace(
   const store = getStore();
   return store.events
     .filter((e) => e.workspaceId === workspaceId)
-    .map((e) => ({
-      ...e,
-      myEffectiveRole: ws.role === 'owner' ? 'workspace_owner' : ws.role === 'admin' ? 'workspace_admin' : 'viewer',
-    }));
+    .map((e) => {
+      recalculateEventMetrics(e.id);
+      return {
+        ...e,
+        myEffectiveRole:
+          ws.role === 'owner'
+            ? 'workspace_owner'
+            : ws.role === 'admin'
+            ? 'workspace_admin'
+            : 'viewer',
+      };
+    });
 }
 
 export function getAllAuthorizedEventsForUser(userId: string): EventSummary[] {
@@ -438,15 +558,17 @@ export function getAllAuthorizedEventsForUser(userId: string): EventSummary[] {
   const results: EventSummary[] = [];
 
   for (const event of store.events) {
+    recalculateEventMetrics(event.id);
     const wsMembership = store.workspaceMemberships.find(
-      (wm) => wm.workspaceId === event.workspaceId && wm.userId === userId && wm.status === 'active'
+      (wm) =>
+        wm.workspaceId === event.workspaceId && wm.userId === userId && wm.status === 'active'
     );
     const evMembership = store.eventMemberships.find(
       (em) => em.eventId === event.id && em.userId === userId && em.status === 'active'
     );
 
     const effectiveRole = resolveEffectiveEventRole({
-      isPlatformAdmin: user?.isPlatformAdmin,
+      isPlatformAdmin: false, // Jaga agar simulasi isolasi WO A vs WO B tetap akurat
       workspaceRole: wsMembership?.role ?? null,
       eventRole: evMembership?.role ?? null,
       workspaceType: event.workspaceType,
@@ -456,6 +578,11 @@ export function getAllAuthorizedEventsForUser(userId: string): EventSummary[] {
       results.push({
         ...event,
         myEffectiveRole: effectiveRole,
+      });
+    } else if (user?.userId === 'user-platform-admin') {
+      results.push({
+        ...event,
+        myEffectiveRole: 'platform_admin',
       });
     }
   }
@@ -605,6 +732,505 @@ export function updateEventDetails(params: {
   return getEventIfAuthorized(params.userId, params.eventId)!;
 }
 
+// ============================================================================
+// SPRINT 2: MANAJEMEN TAMU, KUOTA, QR TOKEN & HAPUS DATA TESTING
+// ============================================================================
+
+export function listInvitationGroupsForEvent(
+  userId: string,
+  eventId: string,
+  filters?: { query?: string; category?: string }
+): InvitationGroupDetail[] | null {
+  const ev = getEventIfAuthorized(userId, eventId);
+  if (!ev) return null;
+
+  recalculateEventMetrics(eventId);
+  const store = getStore();
+  let list = store.invitationGroups.filter((g) => g.eventId === eventId);
+
+  if (filters?.category && filters.category !== 'all') {
+    list = list.filter((g) => g.guestCategory === filters.category);
+  }
+  if (filters?.query && filters.query.trim().length > 0) {
+    const q = filters.query.trim().toLowerCase();
+    list = list.filter(
+      (g) =>
+        g.displayName.toLowerCase().includes(q) ||
+        (g.tableLabelOptional && g.tableLabelOptional.toLowerCase().includes(q)) ||
+        g.qrTokenPreview.toLowerCase().includes(q)
+    );
+  }
+
+  return list;
+}
+
+export function addInvitationGroupToEvent(params: {
+  userId: string;
+  eventId: string;
+  displayName: string;
+  phoneOptional?: string;
+  type: InvitationGroupType;
+  capacity: number;
+  guestCategory: GuestCategory;
+  tableLabelOptional?: string;
+  notesPrivateOptional?: string;
+  allowedPublicDisplay: boolean;
+  isTestData?: boolean;
+}): { group: InvitationGroupDetail } | { error: string; code?: string } {
+  const ev = getEventIfAuthorized(params.userId, params.eventId);
+  if (!ev) {
+    return { error: 'Acara tidak ditemukan atau Anda tidak memiliki akses.', code: 'NOT_FOUND' };
+  }
+
+  if (!hasPermission(ev.myEffectiveRole, 'event:manage_guests')) {
+    return {
+      error: 'Peran Anda tidak memiliki izin untuk menambah daftar tamu.',
+      code: 'FORBIDDEN',
+    };
+  }
+
+  const store = getStore();
+  const currentGroupsCount = store.invitationGroups.filter((g) => g.eventId === ev.id).length;
+  const quotaCheck = canAddInvitationGroup(ev.planCode, currentGroupsCount);
+  if (!quotaCheck.allowed) {
+    return {
+      error: quotaCheck.reason ?? 'Batas kuota paket tercapai.',
+      code: 'QUOTA_EXCEEDED',
+    };
+  }
+
+  const cleanName = params.displayName.trim();
+  if (cleanName.length < 2) {
+    return { error: 'Nama penerima undangan minimal 2 karakter.', code: 'VALIDATION_ERROR' };
+  }
+
+  const cap = Math.max(1, Math.min(20, Math.floor(params.capacity)));
+  const randomSuffix = generateOpaqueToken(6).toUpperCase();
+  const qrTokenPreview = `QR-${randomSuffix}`;
+  const publicTokenPreview = `inv-${generateOpaqueToken(9)}`;
+
+  const newGroup: InvitationGroupDetail = {
+    id: `grp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    eventId: ev.id,
+    displayName: cleanName,
+    phoneOptional: params.phoneOptional?.trim() || undefined,
+    type: params.type,
+    capacity: cap,
+    guestCategory: params.guestCategory,
+    tableLabelOptional: params.tableLabelOptional?.trim() || undefined,
+    notesPrivateOptional: params.notesPrivateOptional?.trim() || undefined,
+    allowedPublicDisplay: Boolean(params.allowedPublicDisplay),
+    rsvpStatus: 'pending',
+    rsvpCount: 0,
+    checkedInCount: 0,
+    remainingCapacity: cap,
+    qrTokenPreview,
+    publicTokenPreview,
+    tokenVersion: 1,
+    isTestData: Boolean(params.isTestData),
+    createdAt: new Date().toISOString(),
+  };
+
+  store.invitationGroups.unshift(newGroup);
+  recalculateEventMetrics(ev.id);
+
+  const actor = store.users[params.userId];
+  store.auditLogs.unshift({
+    id: `aud-${Date.now()}`,
+    workspaceId: ev.workspaceId,
+    eventId: ev.id,
+    actorName: actor?.displayName ?? params.userId,
+    action: 'guest.created',
+    entityType: 'invitation_group',
+    entityId: newGroup.id,
+    summary: `Menambahkan undangan "${newGroup.displayName}" (${newGroup.guestCategory.toUpperCase()}, Kuota ${newGroup.capacity} orang).`,
+    createdAt: new Date().toISOString(),
+  });
+
+  return { group: newGroup };
+}
+
+export function rotateInvitationGroupToken(params: {
+  userId: string;
+  eventId: string;
+  groupId: string;
+}): { ok: boolean; error?: string } {
+  const ev = getEventIfAuthorized(params.userId, params.eventId);
+  if (!ev || !hasPermission(ev.myEffectiveRole, 'event:manage_guests')) {
+    return { ok: false, error: 'Anda tidak memiliki izin untuk memutar ulang token QR.' };
+  }
+
+  const store = getStore();
+  const group = store.invitationGroups.find(
+    (g) => g.id === params.groupId && g.eventId === params.eventId
+  );
+  if (!group) {
+    return { ok: false, error: 'Data undangan tidak ditemukan.' };
+  }
+
+  group.tokenVersion += 1;
+  group.qrTokenPreview = `QR-${generateOpaqueToken(6).toUpperCase()}-V${group.tokenVersion}`;
+  group.publicTokenPreview = `inv-${generateOpaqueToken(9)}`;
+
+  const actor = store.users[params.userId];
+  store.auditLogs.unshift({
+    id: `aud-${Date.now()}`,
+    workspaceId: ev.workspaceId,
+    eventId: ev.id,
+    actorName: actor?.displayName ?? params.userId,
+    action: 'invitation.token_rotated',
+    entityType: 'invitation_group',
+    entityId: group.id,
+    summary: `Memutar ulang (rotate) token QR & tautan publik untuk "${group.displayName}" ke versi v${group.tokenVersion}.`,
+    createdAt: new Date().toISOString(),
+  });
+
+  return { ok: true };
+}
+
+// ============================================================================
+// SPRINT 3: CHECK-IN HARI-H, KOREKSI SUPERVISOR & RESET DATA TESTING
+// ============================================================================
+
+export function recordEventCheckinOrCorrection(params: {
+  userId: string;
+  eventId: string;
+  groupIdOrQrToken: string;
+  deltaAttendees: number;
+  method: CheckinMethod;
+  reasonNullable?: string;
+  idempotencyKey: string;
+}): {
+  ok: boolean;
+  message: string;
+  group?: InvitationGroupDetail;
+  errorCode?: string;
+} {
+  const ev = getEventIfAuthorized(params.userId, params.eventId);
+  if (!ev) {
+    return {
+      ok: false,
+      message: 'Acara tidak ditemukan atau Anda tidak memiliki akses.',
+      errorCode: 'NOT_FOUND',
+    };
+  }
+
+  if (params.method === 'correction') {
+    if (!hasPermission(ev.myEffectiveRole, 'event:correct_checkin')) {
+      return {
+        ok: false,
+        message: 'Hanya Supervisor, Manajer Acara, atau Owner WO yang dapat melakukan koreksi.',
+        errorCode: 'FORBIDDEN',
+      };
+    }
+    if (!params.reasonNullable || params.reasonNullable.trim().length < 5) {
+      return {
+        ok: false,
+        message: 'Alasan koreksi wajib diisi minimal 5 karakter untuk keperluan audit.',
+        errorCode: 'VALIDATION_ERROR',
+      };
+    }
+  } else {
+    if (!hasPermission(ev.myEffectiveRole, 'event:scan_checkin')) {
+      return {
+        ok: false,
+        message: 'Peran Anda tidak diizinkan melakukan scan atau check-in tamu.',
+        errorCode: 'FORBIDDEN',
+      };
+    }
+  }
+
+  const store = getStore();
+
+  // 1. Cek Idempotency Key
+  const duplicateKey = store.checkinLedger.find(
+    (entry) => entry.eventId === ev.id && entry.idempotencyKey === params.idempotencyKey
+  );
+  if (duplicateKey) {
+    const existingGroup = store.invitationGroups.find(
+      (g) => g.id === duplicateKey.invitationGroupId
+    );
+    return {
+      ok: true,
+      message: 'Permintaan duplikat diabaikan (Idempotent Replay) — saldo kehadiran tetap aman.',
+      group: existingGroup,
+    };
+  }
+
+  // 2. Cari grup berdasarkan ID atau QR Token pada acara aktif
+  const q = params.groupIdOrQrToken.trim();
+  const group = store.invitationGroups.find(
+    (g) =>
+      g.eventId === ev.id &&
+      (g.id === q || g.qrTokenPreview.toLowerCase() === q.toLowerCase())
+  );
+
+  if (!group) {
+    return {
+      ok: false,
+      message: 'QR tidak dikenali untuk acara ini. Silakan pindai ulang atau cari nama manual.',
+      errorCode: 'NOT_FOUND',
+    };
+  }
+
+  recalculateEventMetrics(ev.id);
+  const nextCount = group.checkedInCount + params.deltaAttendees;
+
+  if (nextCount > group.capacity) {
+    return {
+      ok: false,
+      message:
+        group.remainingCapacity === 0
+          ? `Semua ${group.capacity} tempat untuk undangan "${group.displayName}" sudah tercatat hadir.`
+          : `Jumlah hadir (${nextCount}) melebihi kapasitas undangan (${group.capacity}). Tersisa ${group.remainingCapacity} tempat.`,
+      errorCode: 'CAPACITY_EXCEEDED',
+    };
+  }
+
+  if (nextCount < 0) {
+    return {
+      ok: false,
+      message: 'Total kehadiran tidak boleh kurang dari 0.',
+      errorCode: 'VALIDATION_ERROR',
+    };
+  }
+
+  const actor = store.users[params.userId];
+  const entry: CheckinLogViewItem = {
+    id: `chk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    eventId: ev.id,
+    invitationGroupId: group.id,
+    guestDisplayName: group.displayName,
+    guestCategory: group.guestCategory,
+    tableLabelOptional: group.tableLabelOptional,
+    actorName: actor?.displayName ?? 'Petugas Scanner',
+    deltaAttendees: params.deltaAttendees,
+    method: params.method,
+    reasonNullable: params.reasonNullable?.trim() || null,
+    idempotencyKey: params.idempotencyKey,
+    createdAt: new Date().toISOString(),
+  };
+
+  store.checkinLedger.unshift(entry);
+  recalculateEventMetrics(ev.id);
+
+  store.auditLogs.unshift({
+    id: `aud-${Date.now()}`,
+    workspaceId: ev.workspaceId,
+    eventId: ev.id,
+    actorName: actor?.displayName ?? params.userId,
+    action: params.method === 'correction' ? 'checkin.corrected' : 'checkin.recorded',
+    entityType: 'invitation_group',
+    entityId: group.id,
+    summary:
+      params.method === 'correction'
+        ? `Koreksi kehadiran ${params.deltaAttendees} orang pada "${group.displayName}". Alasan: ${params.reasonNullable}`
+        : `Check-in +${params.deltaAttendees} orang untuk "${group.displayName}" (Total hadir: ${group.checkedInCount}/${group.capacity}).`,
+    createdAt: new Date().toISOString(),
+  });
+
+  return {
+    ok: true,
+    message:
+      params.method === 'correction'
+        ? `Koreksi berhasil disimpan. Total hadir "${group.displayName}" kini ${group.checkedInCount}/${group.capacity} orang.`
+        : `Check-in berhasil! "${group.displayName}" tercatat hadir (+${params.deltaAttendees} orang, total ${group.checkedInCount}/${group.capacity}).`,
+    group,
+  };
+}
+
+export function listCheckinLedgerForEvent(
+  userId: string,
+  eventId: string
+): CheckinLogViewItem[] | null {
+  const ev = getEventIfAuthorized(userId, eventId);
+  if (!ev) return null;
+  const store = getStore();
+  return store.checkinLedger.filter((l) => l.eventId === eventId);
+}
+
+/**
+ * Fitur Reset / Hapus Data Testing Sebelum Acara Nyata (Menjawab Poin 5 User)
+ * - Mode 'reset_checkins_only': Menghapus seluruh simulasi check-in hari-H menjadi 0 kembali,
+ *   tetapi daftar tamu asli tetap utuh.
+ * - Mode 'delete_all_test_guests': Menghapus semua tamu simulasi/testing beserta riwayat check-in-nya
+ *   sehingga acara bersih 0 tamu dan siap di-import Excel tamu asli klien.
+ */
+export function purgeEventTestingData(params: {
+  userId: string;
+  eventId: string;
+  mode: 'reset_checkins_only' | 'delete_all_test_guests' | 'restore_demo_samples';
+}): { ok: boolean; message: string } {
+  const ev = getEventIfAuthorized(params.userId, params.eventId);
+  if (!ev) {
+    return { ok: false, message: 'Acara tidak ditemukan atau Anda tidak memiliki akses.' };
+  }
+
+  const canReset =
+    ev.myEffectiveRole === 'workspace_owner' ||
+    ev.myEffectiveRole === 'workspace_admin' ||
+    ev.myEffectiveRole === 'event_manager' ||
+    ev.myEffectiveRole === 'platform_admin';
+
+  if (!canReset) {
+    return {
+      ok: false,
+      message: 'Hanya Pemilik WO atau Manajer Acara yang dapat mereset data simulasi/testing.',
+    };
+  }
+
+  const store = getStore();
+  const actor = store.users[params.userId];
+
+  if (params.mode === 'reset_checkins_only') {
+    store.checkinLedger = store.checkinLedger.filter((l) => l.eventId !== ev.id);
+    recalculateEventMetrics(ev.id);
+
+    store.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      workspaceId: ev.workspaceId,
+      eventId: ev.id,
+      actorName: actor?.displayName ?? params.userId,
+      action: 'testing_data.checkins_reset',
+      entityType: 'event',
+      entityId: ev.id,
+      summary:
+        'Mereset seluruh angka simulasi check-in menjadi 0 (daftar tamu tetap dipertahankan) untuk persiapan Hari-H.',
+      createdAt: new Date().toISOString(),
+    });
+
+    return {
+      ok: true,
+      message:
+        'Seluruh angka simulasi check-in berhasil di-reset kembali ke 0! Daftar tamu Anda tetap aman.',
+    };
+  }
+
+  if (params.mode === 'delete_all_test_guests') {
+    store.checkinLedger = store.checkinLedger.filter((l) => l.eventId !== ev.id);
+    store.invitationGroups = store.invitationGroups.filter((g) => g.eventId !== ev.id);
+    recalculateEventMetrics(ev.id);
+
+    store.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      workspaceId: ev.workspaceId,
+      eventId: ev.id,
+      actorName: actor?.displayName ?? params.userId,
+      action: 'testing_data.purged_all',
+      entityType: 'event',
+      entityId: ev.id,
+      summary:
+        'Menghapus seluruh daftar tamu testing & riwayat simulasi pada acara ini hingga bersih (0 tamu).',
+      createdAt: new Date().toISOString(),
+    });
+
+    return {
+      ok: true,
+      message:
+        'Seluruh data tamu testing dan riwayat simulasi check-in berhasil dihapus bersih (0 tamu)! Acara siap diisi data tamu klien asli.',
+    };
+  }
+
+  // Mode restore_demo_samples
+  store.checkinLedger = store.checkinLedger.filter((l) => l.eventId !== ev.id);
+  store.invitationGroups = store.invitationGroups.filter((g) => g.eventId !== ev.id);
+
+  const samples = createInitialGuestSamples().map((g) => ({ ...g, eventId: ev.id }));
+  store.invitationGroups.push(...samples);
+  if (ev.id === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+    store.checkinLedger.push(...createInitialCheckinSamples());
+  }
+  recalculateEventMetrics(ev.id);
+
+  return {
+    ok: true,
+    message: 'Data contoh simulasi (3 grup tamu & 1 riwayat scan) berhasil dimuat kembali.',
+  };
+}
+
+export function getPublicInvitationByToken(rawToken: string): {
+  event: EventSummary;
+  group: InvitationGroupDetail;
+} | null {
+  const store = getStore();
+  const clean = rawToken.trim();
+  const group = store.invitationGroups.find((g) => g.publicTokenPreview === clean);
+  if (!group) return null;
+  const event = store.events.find((e) => e.id === group.eventId);
+  if (!event) return null;
+  return { event, group };
+}
+
+export function submitPublicRsvpByToken(params: {
+  rawToken: string;
+  rsvpStatus: RsvpStatus;
+  attendeeCount: number;
+  noteOptional?: string;
+}): { ok: boolean; message: string; group?: InvitationGroupDetail } {
+  const found = getPublicInvitationByToken(params.rawToken);
+  if (!found) {
+    return { ok: false, message: 'Tautan undangan tidak valid atau telah kedaluwarsa.' };
+  }
+
+  const { group, event } = found;
+  const count = params.rsvpStatus === 'declined' ? 0 : Math.floor(params.attendeeCount);
+
+  if (count < 0 || count > group.capacity) {
+    return {
+      ok: false,
+      message: `Jumlah kehadiran RSVP tidak boleh melebihi kuota undangan Anda (${group.capacity} orang).`,
+    };
+  }
+
+  group.rsvpStatus = params.rsvpStatus;
+  group.rsvpCount = count;
+  group.rsvpNote = params.noteOptional?.trim().slice(0, 300) || undefined;
+
+  recalculateEventMetrics(event.id);
+  return {
+    ok: true,
+    message: 'Terima kasih! Konfirmasi rencana kehadiran (RSVP) Anda telah tersimpan.',
+    group,
+  };
+}
+
+export function updateEventPlanByAdmin(params: {
+  actorUserId: string;
+  eventId: string;
+  planCode: PlanCode;
+}): { ok: boolean; message: string } {
+  const store = getStore();
+  const actor = store.users[params.actorUserId];
+  if (!actor?.isPlatformAdmin) {
+    return { ok: false, message: 'Hanya Super Admin yang dapat mengaktifkan lisensi paket acara.' };
+  }
+
+  const target = store.events.find((e) => e.id === params.eventId);
+  if (!target) {
+    return { ok: false, message: 'Acara tidak ditemukan.' };
+  }
+
+  target.planCode = params.planCode;
+  target.licenseStatus = 'active';
+
+  store.auditLogs.unshift({
+    id: `aud-${Date.now()}`,
+    workspaceId: target.workspaceId,
+    eventId: target.id,
+    actorName: actor.displayName,
+    action: 'license.activated_manual',
+    entityType: 'event_license',
+    entityId: target.id,
+    summary: `Mengaktifkan paket ${params.planCode.toUpperCase()} secara manual untuk acara "${target.title}".`,
+    createdAt: new Date().toISOString(),
+  });
+
+  return {
+    ok: true,
+    message: `Paket acara "${target.title}" berhasil diubah menjadi ${params.planCode.toUpperCase()}.`,
+  };
+}
+
 export function listMemberInvitesForEvent(
   userId: string,
   eventId: string
@@ -727,7 +1353,6 @@ export function revokeEventMemberInvite(params: {
 
   inv.revokedAt = new Date().toISOString();
 
-  // Jika sebelumnya sudah diterima, cabut juga event_membership terkait
   const targetUser = Object.values(store.users).find(
     (u) => u.email.toLowerCase() === inv.recipientEmail.toLowerCase()
   );
@@ -813,4 +1438,3 @@ export function listAuditLogsForEvent(userId: string, eventId: string): AuditLog
   const store = getStore();
   return store.auditLogs.filter((log) => log.eventId === eventId);
 }
-

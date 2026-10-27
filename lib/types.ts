@@ -80,6 +80,44 @@ export interface EventSummary {
   };
 }
 
+export interface InvitationGroupDetail {
+  id: string;
+  eventId: string;
+  displayName: string;
+  phoneOptional?: string;
+  type: InvitationGroupType;
+  capacity: number;
+  guestCategory: GuestCategory;
+  tableLabelOptional?: string;
+  notesPrivateOptional?: string;
+  allowedPublicDisplay: boolean;
+  rsvpStatus: RsvpStatus | 'pending';
+  rsvpCount: number;
+  rsvpNote?: string;
+  checkedInCount: number;
+  remainingCapacity: number;
+  qrTokenPreview: string;
+  publicTokenPreview: string;
+  tokenVersion: number;
+  isTestData?: boolean;
+  createdAt: string;
+}
+
+export interface CheckinLogViewItem {
+  id: string;
+  eventId: string;
+  invitationGroupId: string;
+  guestDisplayName: string;
+  guestCategory: GuestCategory;
+  tableLabelOptional?: string;
+  actorName: string;
+  deltaAttendees: number;
+  method: CheckinMethod;
+  reasonNullable: string | null;
+  idempotencyKey: string;
+  createdAt: string;
+}
+
 export interface MemberInviteItem {
   id: string;
   workspaceId: string;
@@ -106,4 +144,3 @@ export interface AuditLogItem {
   summary: string;
   createdAt: string;
 }
-

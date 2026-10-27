@@ -7,7 +7,6 @@ import {
 } from '@/lib/types';
 import { hasPermission, ROLE_LABELS_ID } from '@/lib/permissions';
 import { Badge } from '@/components/ui/primitives';
-import { isSupabaseConfigured } from '@/lib/db/supabase-browser';
 
 interface AppShellProps {
   user: UserProfile;
@@ -22,28 +21,26 @@ interface AppShellProps {
 export function AppShell({
   user,
   activeWorkspace,
-  allWorkspaces = [],
+  allWorkspaces: _allWorkspaces = [],
   effectiveRole = 'workspace_owner',
   eventId,
   eventTitle,
   children,
 }: AppShellProps) {
-  const supabaseReady = isSupabaseConfigured();
-
   const workspaceNav = activeWorkspace
     ? [
         {
-          label: 'Ringkasan WO',
+          label: 'Ringkasan Eksekutif WO',
           href: `/app/w/${activeWorkspace.id}`,
           show: true,
         },
         {
-          label: 'Semua Acara',
+          label: 'Portofolio Semua Acara',
           href: `/app/w/${activeWorkspace.id}/events`,
           show: true,
         },
         {
-          label: 'Ganti Workspace',
+          label: 'Pindah Workspace',
           href: '/app/workspaces',
           show: true,
         },
@@ -53,53 +50,47 @@ export function AppShell({
   const eventNav = eventId
     ? [
         {
-          label: 'Ringkasan Acara',
+          label: 'Ringkasan & Reset Data',
           href: `/app/e/${eventId}`,
           show: hasPermission(effectiveRole, 'event:view_overview'),
         },
         {
-          label: 'Daftar Tamu',
+          label: 'Daftar Tamu & Import',
           href: `/app/e/${eventId}/guests`,
           show: hasPermission(effectiveRole, 'event:manage_guests'),
-          badge: 'Sprint 2',
         },
         {
-          label: 'Undangan & QR',
+          label: 'Undangan Digital & QR',
           href: `/app/e/${eventId}/invitations`,
           show: hasPermission(effectiveRole, 'event:manage_guests'),
-          badge: 'Sprint 2',
         },
         {
-          label: 'Scanner Check-in',
+          label: 'Scanner & Check-in Hari-H',
           href: `/app/e/${eventId}/checkin`,
           show: hasPermission(effectiveRole, 'event:scan_checkin'),
-          badge: 'Sprint 3',
         },
         {
-          label: 'Antrean VIP & Usher',
+          label: 'Protokol VIP & Usher',
           href: `/app/e/${eventId}/vip`,
           show: hasPermission(effectiveRole, 'event:view_vip_queue'),
-          badge: 'Sprint 3',
         },
         {
-          label: 'Layar Sambutan TV',
+          label: 'Layar Sambutan TV/LED',
           href: `/app/e/${eventId}/display`,
           show: hasPermission(effectiveRole, 'event:configure_display'),
-          badge: 'Sprint 4',
         },
         {
-          label: 'Laporan & Ekspor',
+          label: 'Laporan & Ekspor CSV',
           href: `/app/e/${eventId}/reports`,
           show: hasPermission(effectiveRole, 'event:view_reports'),
-          badge: 'Sprint 3',
         },
         {
-          label: 'Tim & Akses Acara',
+          label: 'Tim & Akses Pasangan',
           href: `/app/e/${eventId}/team`,
           show: hasPermission(effectiveRole, 'event:manage_team'),
         },
         {
-          label: 'Paket & Lisensi',
+          label: 'Paket, Harga & Masa Aktif',
           href: `/app/e/${eventId}/plan`,
           show: true,
         },
@@ -113,59 +104,81 @@ export function AppShell({
 
   return (
     <div className="min-h-screen flex flex-col bg-ivory">
-      {/* Banner Jujur Status Lingkungan Lokal vs Supabase */}
-      {!supabaseReady && (
-        <div className="bg-navy-dark text-ivory px-4 py-2 text-xs border-b border-gold/30">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-            <span>
-              <strong>Mode Pengembangan Lokal (Sandbox):</strong> Kredensial{' '}
-              <code className="text-gold-light">.env.local</code> Supabase belum dihubungkan. Data
-              berlabel <code className="text-gold-light">[CONTOH DEV]</code> hanya untuk uji alur
-              multi-tenant WO &amp; Pengantin.
+      {/* Top Luxury Bar */}
+      <div className="no-print bg-navy-dark text-ivory px-4 py-2 text-xs border-b border-gold/30">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-gold-light animate-pulse" />
+            <span className="tracking-wide text-ivory/90">
+              <strong>SANSTECH ROYAL CONCIERGE</strong> — Keamanan Multi-Tenant &amp; Perlindungan
+              Data Tamu Aktif
             </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/panduan"
+              className="text-gold-light hover:text-white font-semibold underline underline-offset-4"
+            >
+              📖 Buku Pedoman (Siap Cetak / PDF)
+            </Link>
+            {user.isPlatformAdmin && (
+              <Link
+                href="/admin"
+                className="rounded bg-gold/20 border border-gold/40 px-2.5 py-0.5 text-gold-light hover:bg-gold hover:text-navy-dark font-bold transition"
+              >
+                ⚙️ Panel Super Admin (Atur Harga &amp; Masa Aktif)
+              </Link>
+            )}
             <Link
               href="/auth/login"
-              className="underline text-gold-light hover:text-white font-medium"
+              className="text-ivory/80 hover:text-white underline underline-offset-4"
             >
-              Ganti Akun Uji Peran (WO A / Pengantin / WO B)
+              Ganti Peran Uji (WO / Pengantin)
             </Link>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur">
+      {/* Main Header */}
+      <header className="no-print sticky top-0 z-30 border-b border-gold/25 bg-surface/95 backdrop-blur shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
               href="/app/workspaces"
-              className="flex items-center gap-2.5 font-bold text-navy tracking-tight text-lg"
+              className="flex items-center gap-3 font-bold text-navy tracking-tight"
             >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-button bg-navy text-gold-light font-serif text-base">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-button bg-gradient-to-br from-navy via-navy-light to-navy-dark text-gold-light border border-gold/40 font-serif text-xl shadow-sm">
                 S
               </span>
-              <span>{BRAND_SHORT_NAME}</span>
+              <div>
+                <span className="font-serif text-xl tracking-wide block leading-none text-navy">
+                  {BRAND_SHORT_NAME}
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-gold-dark font-semibold">
+                  Luxury Guest Suite
+                </span>
+              </div>
             </Link>
 
             {activeWorkspace ? (
-              <div className="hidden md:flex items-center gap-2 pl-3 border-l border-border text-sm">
-                <span className="text-ink/60">Workspace:</span>
+              <div className="hidden md:flex items-center gap-2 pl-4 border-l border-border text-sm">
+                <span className="text-ink/50 text-xs">Organisasi:</span>
                 <Link
                   href={`/app/w/${activeWorkspace.id}`}
-                  className="font-semibold text-navy hover:underline"
+                  className="font-semibold text-navy hover:text-gold-dark transition"
                 >
                   {activeWorkspace.name}
                 </Link>
                 <Badge variant="gold">
-                  {activeWorkspace.type === 'wo' ? 'Wedding Organizer' : 'Pengantin'}
+                  {activeWorkspace.type === 'wo' ? 'Wedding Organizer' : 'Private Couple'}
                 </Badge>
               </div>
             ) : null}
 
             {eventTitle ? (
-              <div className="hidden lg:flex items-center gap-2 pl-3 border-l border-border text-sm">
-                <span className="text-ink/60">Acara:</span>
-                <span className="font-semibold text-navy truncate max-w-[200px]">
+              <div className="hidden lg:flex items-center gap-2 pl-4 border-l border-border text-sm">
+                <span className="text-ink/50 text-xs">Acara:</span>
+                <span className="font-serif font-bold text-base text-navy truncate max-w-[220px]">
                   {eventTitle}
                 </span>
               </div>
@@ -173,28 +186,19 @@ export function AppShell({
           </div>
 
           <div className="flex items-center gap-3">
-            <Badge variant="outline" className="hidden sm:inline-flex">
-              Peran: {ROLE_LABELS_ID[effectiveRole]}
+            <Badge variant="outline" className="hidden sm:inline-flex border-gold/30">
+              {ROLE_LABELS_ID[effectiveRole]}
             </Badge>
-
-            {allWorkspaces.length > 1 && (
-              <Link
-                href="/app/workspaces"
-                className="text-xs font-semibold text-navy hover:text-gold-dark border border-border rounded-button px-3 py-2"
-              >
-                Pindah Workspace ({allWorkspaces.length})
-              </Link>
-            )}
 
             <div className="text-right hidden sm:block">
               <p className="text-xs font-semibold text-navy">{user.displayName}</p>
-              <p className="text-[11px] text-ink/60">{user.email}</p>
+              <p className="text-[11px] text-ink/55">{user.email}</p>
             </div>
 
             <form action="/api/auth/logout" method="POST">
               <button
                 type="submit"
-                className="min-h-[38px] rounded-button border border-border bg-ivory px-3 py-1.5 text-xs font-semibold text-ink hover:bg-danger/10 hover:text-danger hover:border-danger/30 transition"
+                className="min-h-[38px] rounded-button border border-border bg-ivory px-3.5 py-1.5 text-xs font-semibold text-ink hover:bg-danger/10 hover:text-danger hover:border-danger/30 transition"
               >
                 Keluar
               </button>
@@ -203,21 +207,21 @@ export function AppShell({
         </div>
       </header>
 
-      {/* Main Content Layout with Desktop Sidebar */}
+      {/* Main Layout */}
       <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row">
         {(workspaceNav.length > 0 || eventNav.length > 0) && (
-          <aside className="w-full md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-border bg-surface p-4">
+          <aside className="no-print w-full md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-gold/20 bg-surface p-5">
             {workspaceNav.length > 0 && (
               <div className="mb-6">
-                <p className="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-ink/50">
-                  Navigasi Workspace
+                <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-gold-dark">
+                  Ruang Kerja Utama
                 </p>
                 <nav className="space-y-1">
                   {workspaceNav.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex items-center justify-between rounded-button px-3 py-2.5 text-sm font-medium text-ink hover:bg-ivory hover:text-navy transition"
+                      className="flex items-center justify-between rounded-button px-3 py-2 text-xs font-semibold text-ink/80 hover:bg-ivory hover:text-navy border border-transparent hover:border-gold/25 transition"
                     >
                       <span>{item.label}</span>
                     </Link>
@@ -228,27 +232,42 @@ export function AppShell({
 
             {eventNav.length > 0 && (
               <div>
-                <p className="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-ink/50">
-                  Menu Acara Aktif
+                <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-gold-dark">
+                  Manajemen Acara
                 </p>
                 <nav className="space-y-1">
                   {eventNav.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex items-center justify-between rounded-button px-3 py-2.5 text-sm font-medium text-ink hover:bg-ivory hover:text-navy transition"
+                      className="flex items-center justify-between rounded-button px-3 py-2.5 text-xs font-semibold text-ink/85 hover:bg-ivory hover:text-navy border border-transparent hover:border-gold/30 transition"
                     >
                       <span>{item.label}</span>
-                      {item.badge ? (
-                        <span className="rounded bg-gold/15 px-1.5 py-0.5 text-[10px] font-semibold text-gold-dark">
-                          {item.badge}
-                        </span>
-                      ) : null}
                     </Link>
                   ))}
                 </nav>
               </div>
             )}
+
+            <div className="mt-8 pt-6 border-t border-border space-y-2">
+              <p className="px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-ink/45">
+                Bantuan &amp; Kontrol
+              </p>
+              <Link
+                href="/panduan"
+                className="block rounded-button px-3 py-2 text-xs font-semibold text-navy bg-gold/10 border border-gold/30 hover:bg-gold/20 transition"
+              >
+                🖨️ Cetak Buku Pedoman WO
+              </Link>
+              {user.isPlatformAdmin && (
+                <Link
+                  href="/admin"
+                  className="block rounded-button px-3 py-2 text-xs font-semibold text-ivory bg-navy hover:bg-navy-light transition"
+                >
+                  💎 Atur Harga &amp; Paket
+                </Link>
+              )}
+            </div>
           </aside>
         )}
 
@@ -257,4 +276,3 @@ export function AppShell({
     </div>
   );
 }
-
