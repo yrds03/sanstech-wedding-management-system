@@ -9,6 +9,30 @@ import {
 import { AppShell } from '@/components/app/app-shell';
 import { Badge, EmptyState } from '@/components/ui/primitives';
 import { hasPermission, ROLE_LABELS_ID } from '@/lib/permissions';
+import { getRoleAccessGuide } from '@/lib/team/role-guide';
+
+const APP_ORIGIN =
+  process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')
+    ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
+    : 'https://sanstech-wedding-management-system.vercel.app';
+
+function buildInviteWhatsAppMessage(params: {
+  eventTitle: string;
+  workspaceName: string;
+  roleTitle: string;
+  email: string;
+  link: string;
+}): string {
+  return [
+    `Halo, Anda diundang oleh ${params.workspaceName} untuk acara "${params.eventTitle}" sebagai ${params.roleTitle}.`,
+    '',
+    'Cara masuk (pilih salah satu):',
+    `1) Klik tautan ini lalu tekan "Terima Undangan": ${params.link}`,
+    `2) Atau buka ${APP_ORIGIN}/auth/login dan masuk dengan email: ${params.email}`,
+    '',
+    'Tautan berlaku 72 jam. Jangan bagikan tautan ini kepada orang lain.',
+  ].join('\n');
+}
 
 export default async function EventTeamPage({
   params,
@@ -48,6 +72,38 @@ export default async function EventTeamPage({
             Usher VIP dengan akses terbatas khusus untuk acara <strong>{event.title}</strong>.
           </p>
         </div>
+
+        {/* Penjelasan alur akses anggota tim */}
+        <section className="rounded-card border border-gold/40 bg-gold/10 p-5 space-y-3">
+          <h2 className="text-base font-bold text-navy">Bagaimana Anggota Tim / Pasangan Masuk?</h2>
+          <ol className="list-decimal pl-5 text-xs text-ink/80 space-y-1.5">
+            <li>
+              Anda mengundang <strong>satu per satu</strong>: isi email, pilih peran, klik{' '}
+              <em>Buat Tautan Undangan Tim</em>.
+            </li>
+            <li>
+              Klik <strong>Kirim Akses via WhatsApp</strong> pada baris undangan — pesan berisi tautan masuk
+              1-klik dan petunjuk login sudah tersusun otomatis.
+            </li>
+            <li>
+              Penerima punya <strong>2 cara masuk</strong>: (a) klik tautan undangan lalu{' '}
+              <em>Terima Undangan</em>, atau (b) buka halaman Masuk dan ketik email yang diundang.
+            </li>
+            <li>
+              Setelah masuk, penerima <strong>hanya melihat acara ini</strong> dan menu sesuai perannya
+              (mis. petugas scanner hanya melihat Scanner). Anda bisa mencabut akses kapan saja.
+            </li>
+            <li>
+              Ingin memastikan tampilannya benar? Klik <strong>Masuk &amp; Simulasikan Peran Ini</strong>, lalu
+              kembali dengan tombol <em>Kembali ke Akun Saya</em>.
+            </li>
+          </ol>
+          <p className="text-[11px] text-ink/65">
+            <strong>Catatan mode uji coba:</strong> saat ini data tersimpan per browser (belum terhubung database
+            Supabase). Simulasi peran dan login email undangan bekerja di browser yang sama dengan pembuat
+            undangan. Untuk anggota tim di HP/laptop lain secara nyata, sambungkan Supabase terlebih dahulu.
+          </p>
+        </section>
 
         {searchParams?.invited && (
           <div className="rounded-button border border-success/30 bg-success/10 p-3 text-xs font-semibold text-success">
@@ -168,9 +224,12 @@ export default async function EventTeamPage({
                         <p className="font-semibold text-navy">{inv.recipientEmail}</p>
                         {inv.inviteUrlPreview && inv.status === 'pending' && (
                           <p className="text-[11px] text-gold-dark mt-0.5 break-all">
-                            Tautan Uji: <code>{inv.inviteUrlPreview}</code>
+                            Tautan masuk: <code>{inv.inviteUrlPreview}</code>
                           </p>
                         )}
+                        <p className="text-[11px] text-ink/55 mt-0.5">
+                          Login: email di atas di halaman Masuk (kata sandi bebas pada mode uji coba).
+                        </p>
                       </td>
                       <td className="py-3.5 px-4">
                         <Badge variant="gold">{inv.roleLabel.toUpperCase()}</Badge>
@@ -192,24 +251,56 @@ export default async function EventTeamPage({
                         {new Date(inv.expiresAt).toLocaleDateString('id-ID')}
                       </td>
                       <td className="py-3.5 pl-4 text-right">
-                        {canManageTeam && inv.status !== 'revoked' ? (
-                          <form
-                            action={`/api/events/${event.id}/member-invites`}
-                            method="POST"
-                            className="inline-block"
-                          >
-                            <input type="hidden" name="action" value="revoke" />
-                            <input type="hidden" name="inviteId" value={inv.id} />
-                            <button
-                              type="submit"
-                              className="rounded-button border border-danger/30 bg-danger/10 px-3 py-1.5 text-xs font-semibold text-danger hover:bg-danger hover:text-white transition"
+                        <div className="flex flex-col items-end gap-1.5">
+                          {inv.status !== 'revoked' && inv.status !== 'expired' && (
+                            <>
+                              <a
+                                href={`https://wa.me/?text=${encodeURIComponent(buildInviteWhatsAppMessage({
+                                  eventTitle: event.title,
+                                  workspaceName: event.workspaceName,
+                                  roleTitle: getRoleAccessGuide(inv.roleLabel).title,
+                                  email: inv.recipientEmail,
+                                  link: inv.inviteUrlPreview ? `${APP_ORIGIN}${inv.inviteUrlPreview}` : `${APP_ORIGIN}/auth/login`,
+                                }))}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="rounded-button bg-success px-3 py-1.5 text-xs font-bold text-white hover:opacity-90"
+                              >
+                                Kirim Akses via WhatsApp
+                              </a>
+                              {canManageTeam && (
+                                <form action="/api/auth/simulate-member" method="POST">
+                                  <input type="hidden" name="eventId" value={event.id} />
+                                  <input type="hidden" name="inviteId" value={inv.id} />
+                                  <button
+                                    type="submit"
+                                    className="rounded-button border border-gold/60 bg-gold/15 px-3 py-1.5 text-xs font-bold text-navy hover:bg-gold/30 transition"
+                                  >
+                                    Masuk &amp; Simulasikan Peran Ini
+                                  </button>
+                                </form>
+                              )}
+                            </>
+                          )}
+                          {canManageTeam && inv.status !== 'revoked' ? (
+                            <form
+                              action={`/api/events/${event.id}/member-invites`}
+                              method="POST"
+                              className="inline-block"
                             >
-                              Cabut Akses
-                            </button>
-                          </form>
-                        ) : (
-                          <span className="text-xs text-ink/40">—</span>
-                        )}
+                              <input type="hidden" name="action" value="revoke" />
+                              <input type="hidden" name="inviteId" value={inv.id} />
+                              <button
+                                type="submit"
+                                className="rounded-button border border-danger/30 bg-danger/10 px-3 py-1.5 text-xs font-semibold text-danger hover:bg-danger hover:text-white transition"
+                              >
+                                Cabut Akses
+                              </button>
+                            </form>
+                          ) : (
+                            <span className="text-xs text-ink/40">—</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

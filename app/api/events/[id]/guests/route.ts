@@ -8,6 +8,7 @@ import {
 } from '@/lib/db/repository';
 import { GuestCategory, InvitationGroupType } from '@/lib/types';
 import { verifySameOriginMutation } from '@/lib/security/rate-limit';
+import { parseGuestImportText } from '@/lib/spreadsheet/guest-import';
 
 export async function GET(
   request: Request,
@@ -85,49 +86,22 @@ export async function POST(
   }
 
   if (action === 'import_csv_lines') {
-    const rawLines = String(formData.get('csvLines') ?? '')
-      .replace(/^\uFEFF/, '')
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
+    const { rows: importRows } = parseGuestImportText(String(formData.get('csvLines') ?? ''));
 
     let importedCount = 0;
-    for (const line of rawLines) {
-      // Mendukung pemisah koma (,) maupun titik koma (;) dari Microsoft Excel Indonesia
-      const delimiter = line.includes(';') && !line.includes(',') ? ';' : ',';
-      const parts = line.split(delimiter).map((p) => p.trim().replace(/^"|"$/g, ''));
-      const firstColLower = (parts[0] ?? '').toLowerCase();
-      if (
-        !parts[0] ||
-        firstColLower === 'nama_penerima' ||
-        firstColLower === 'nama penerima' ||
-        firstColLower === 'nama tamu'
-      ) {
-        continue;
-      }
-
-      const cap = Number(parts[1] ?? 2) || 2;
-      const catRaw = (parts[2] ?? 'regular').toLowerCase();
-      const guestCategory: GuestCategory =
-        catRaw === 'vvip' ? 'vvip' : catRaw === 'vip' ? 'vip' : 'regular';
-      const tableLabelOptional = parts[3] || undefined;
-      const tvRaw = (parts[4] ?? 'ya').toLowerCase();
-      const allowedPublicDisplay =
-        tvRaw === 'ya' || tvRaw === 'yes' || tvRaw === 'true' || tvRaw === '1';
-      const phoneOptional = parts[5] || undefined;
-      const notesPrivateOptional = parts[6] || undefined;
-
+    for (const row of importRows) {
+      const cap = row.capacity;
       const res = addInvitationGroupToEvent({
         userId: user.userId,
         eventId: context.params.id,
-        displayName: parts[0],
-        phoneOptional,
+        displayName: row.displayName,
+        phoneOptional: row.phoneOptional,
         type: cap > 2 ? 'family' : cap === 2 ? 'couple' : 'individual',
         capacity: cap,
-        guestCategory,
-        tableLabelOptional,
-        notesPrivateOptional,
-        allowedPublicDisplay,
+        guestCategory: row.guestCategory,
+        tableLabelOptional: row.tableLabelOptional,
+        notesPrivateOptional: row.notesPrivateOptional,
+        allowedPublicDisplay: row.allowedPublicDisplay,
       });
 
       if ('group' in res) {

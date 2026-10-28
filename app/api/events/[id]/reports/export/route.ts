@@ -6,9 +6,10 @@ import {
   listInvitationGroupsForEvent,
 } from '@/lib/db/repository';
 import { sanitizeSpreadsheetCell } from '@/lib/qr/tokens';
+import { buildXlsx } from '@/lib/spreadsheet/xlsx';
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: { id: string } }
 ) {
   const user = await getCurrentUserServer();
@@ -53,19 +54,50 @@ export async function GET(
     sanitizeSpreadsheetCell(g.tableLabelOptional ?? '-'),
   ]);
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')),
-  ].join('\r\n');
+  const baseName = `Laporan-Kehadiran-SANSTECH-${context.params.id.slice(0, 8)}`;
 
-  return new NextResponse(csvContent, {
+  if (new URL(request.url).searchParams.get('format') === 'csv') {
+    // `sep=;` + titik koma: Excel Windows (locale Indonesia) langsung memecah kolom.
+    const csvContent = [
+      'sep=;',
+      headers.join(';'),
+      ...rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(';')),
+    ].join('\r\n');
+
+    return new NextResponse(`\uFEFF${csvContent}`, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${baseName}.csv"`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+
+  const numericColumns = new Set([4, 6, 7, 8]);
+  const xlsx = buildXlsx([
+    {
+      name: 'Laporan Kehadiran',
+      rows: [
+        headers,
+        ...rows.map((r) =>
+          r.map((cell, idx) =>
+            numericColumns.has(idx) && cell !== '' && !Number.isNaN(Number(cell))
+              ? Number(cell)
+              : cell
+          )
+        ),
+      ],
+      columnWidths: [30, 38, 12, 12, 16, 14, 13, 18, 12, 18],
+    },
+  ]);
+
+  return new NextResponse(new Uint8Array(xlsx).buffer as ArrayBuffer, {
     status: 200,
     headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="Laporan-Kehadiran-SANSTECH-${context.params.id.slice(
-        0,
-        8
-      )}.csv"`,
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${baseName}.xlsx"`,
+      'Cache-Control': 'no-store',
     },
   });
 }

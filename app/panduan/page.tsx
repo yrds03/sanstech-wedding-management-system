@@ -513,29 +513,53 @@ export default function PrintableOperationalHandbookPage() {
             </ol>
 
             <h3 className="font-bold text-navy text-base pt-3">
-              4.3 Panduan Format Import Massal CSV / Excel (Untuk Paket Signature Pro &amp; Royal
-              Grand)
+              4.3 Panduan Import Massal dari Excel (.xlsx) / CSV
             </h3>
-            <p>
-              Apabila Anda memiliki ratusan tamu di Microsoft Excel atau Google Sheets, Anda dapat
-              mengimpornya sekaligus dengan format 5 kolom yang dipisahkan tanda koma (<code>,</code>)
-              atau titik koma (<code>;</code>):
-            </p>
+            <ol className="list-decimal pl-6 space-y-1.5">
+              <li>
+                Di menu <strong>Daftar Tamu &amp; Import</strong> klik{' '}
+                <strong>Unduh Template Excel Tamu (.xlsx)</strong>. File terbuka di Excel dengan{' '}
+                <strong>kolom A sampai G sudah terpisah rapi</strong> (tanpa pengaturan tambahan).
+              </li>
+              <li>
+                Hapus baris contoh (yang diawali &ldquo;Contoh:&rdquo;; baris ini juga otomatis
+                diabaikan saat impor), lalu isi data tamu mulai baris 2. Sheet kedua{' '}
+                <em>Petunjuk</em> menjelaskan setiap kolom.
+              </li>
+              <li>
+                Simpan sebagai <strong>.xlsx</strong> (atau CSV), lalu pada <strong>Langkah 2</strong> klik
+                pilih file. Sistem langsung membaca isinya dan menampilkan <strong>pratinjau tabel</strong>{' '}
+                berisi jumlah tamu yang akan diimpor.
+              </li>
+              <li>
+                Periksa pratinjau, lalu klik <strong>Import Semua Baris Sekaligus</strong>. Anda juga bisa
+                menyalin beberapa sel dari Excel dan menempelkannya langsung ke kotak teks.
+              </li>
+            </ol>
+            <p>Urutan kolom (7 kolom):</p>
             <div className="rounded-button bg-navy text-gold-light p-4 font-mono text-xs overflow-x-auto">
-              Nama Tamu,Kategori,Kuota,Meja,TampilTV
+              Nama Penerima | Kuota | Kategori | Meja | TampilTV | NoWA | CatatanWO
               <br />
-              Bapak Dr. Pratama &amp; Ibu,vvip,2,Meja VVIP 02,ya
+              Bapak Dr. Pratama &amp; Ibu | 2 | vvip | Meja VVIP 02 | ya | 0812... | Jemput di lobby
               <br />
-              Keluarga Besar Bapak Suryo,vip,4,Meja VIP 05,ya
+              Keluarga Besar Bapak Suryo | 4 | vip | Meja VIP 05 | ya
               <br />
-              Pejabat Negara Incognito,vvip,2,Meja VVIP 01,tidak
+              Pejabat Negara Incognito | 2 | vvip | Meja VVIP 01 | tidak
               <br />
-              Sdr. Kevin Wijaya,reguler,1,Meja Anggrek 03,tidak
+              Sdr. Kevin Wijaya | 1 | regular | Meja Anggrek 03 | tidak
             </div>
             <p className="text-xs text-ink/70">
-              <strong>Aturan Validasi Otomatis:</strong> Sistem akan memeriksa kuota paket Anda
-              terlebih dahulu sebelum menyimpan baris CSV. Jika sisa kuota paket tidak mencukupi,
-              sistem akan memberikan pesan peringatan yang jelas tanpa merusak data yang sudah ada.
+              <strong>Catatan:</strong> Kategori diisi <code>vvip</code>, <code>vip</code>, atau{' '}
+              <code>regular</code>. TampilTV <code>ya</code> = nama boleh tampil di layar sambutan,{' '}
+              <code>tidak</code> = privasi. Format <code>.xls</code> lama tidak didukung; di Excel pilih
+              File &rarr; Save As &rarr; <em>Excel Workbook (.xlsx)</em>. Jika Anda lebih suka CSV, gunakan
+              tautan &ldquo;Unduh versi .csv&rdquo; (sudah berpemisah titik koma agar Excel Indonesia
+              memisahkan kolom otomatis).
+            </p>
+            <p className="text-xs text-ink/70">
+              <strong>Aturan Validasi Otomatis:</strong> Sistem memeriksa kuota paket Anda sebelum
+              menyimpan setiap baris. Jika sisa kuota paket tidak mencukupi, impor berhenti dengan pesan
+              jelas tanpa merusak data yang sudah ada.
             </p>
           </div>
         </section>
@@ -580,6 +604,43 @@ export default function PrintableOperationalHandbookPage() {
                 manual dengan teks undangan sopan yang sudah terisi otomatis beserta tautan unik
                 tamu tersebut. (Sesuai prinsip keamanan, sistem tidak mengirim spam massal otomatis
                 agar nomor WhatsApp WO/Pengantin tidak diblokir oleh Meta/WhatsApp).
+              </li>
+            </ol>
+
+            <h3 className="font-bold text-navy text-base pt-3">
+              5.2 Studio Desain &amp; Konten Undangan (Berdasarkan Paket)
+            </h3>
+            <p>
+              Di bagian atas menu <strong>Undangan Digital &amp; QR</strong> terdapat{' '}
+              <strong>Studio Desain &amp; Konten Undangan Digital</strong> dengan pratinjau langsung.
+              Isian yang terbuka mengikuti paket acara:
+            </p>
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-border text-left text-ink/60">
+                  <th className="py-1.5 pr-3">Fitur</th>
+                  <th className="py-1.5 px-2">Free</th>
+                  <th className="py-1.5 px-2">Signature Pro</th>
+                  <th className="py-1.5 px-2">Royal Grand</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                <tr><td className="py-1.5 pr-3">Tema</td><td className="px-2">Classic Ivory</td><td className="px-2">4 tema premium</td><td className="px-2">4 tema premium</td></tr>
+                <tr><td className="py-1.5 pr-3">Salam, kutipan, dress code, pesan penutup</td><td className="px-2">Baku</td><td className="px-2">Kustom</td><td className="px-2">Kustom</td></tr>
+                <tr><td className="py-1.5 pr-3">Tautan Google Maps / Waze</td><td className="px-2">&mdash;</td><td className="px-2">Ya</td><td className="px-2">Ya</td></tr>
+                <tr><td className="py-1.5 pr-3">Amplop digital (rekening)</td><td className="px-2">&mdash;</td><td className="px-2">&mdash;</td><td className="px-2">Ya</td></tr>
+                <tr><td className="py-1.5 pr-3">Branding</td><td className="px-2">Watermark SANSTECH</td><td className="px-2">Tanpa watermark</td><td className="px-2">Nama brand WO (white-label)</td></tr>
+              </tbody>
+            </table>
+            <ol className="list-decimal pl-6 space-y-1.5">
+              <li>Pilih tema, isi teks, lalu klik <strong>Simpan Desain Undangan</strong>.</li>
+              <li>
+                Semua tombol <strong>Buka Undangan</strong> dan <strong>Share WA</strong> pada daftar tamu
+                otomatis memakai desain terbaru &mdash; kirim ulang tautan bila Anda mengubah desain setelah
+                tautan lama dibagikan.
+              </li>
+              <li>
+                Isian yang terkunci pada paket Anda tampil redup berlabel 🔒. Hubungi admin SANSTECH untuk upgrade paket.
               </li>
             </ol>
 

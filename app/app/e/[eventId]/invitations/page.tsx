@@ -10,6 +10,9 @@ import {
 import { AppShell } from '@/components/app/app-shell';
 import { Badge, EmptyState } from '@/components/ui/primitives';
 import { generateQrCodeDataUrl, generateQrCodeSvg } from '@/lib/qr/render';
+import { InvitationStudio } from '@/components/invitation/invitation-studio';
+import { DEFAULT_INVITATION_CONFIG, sanitizeInvitationConfig } from '@/lib/invitation/config';
+import { buildInvitationPath } from '@/lib/invitation/signing';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +21,7 @@ export default async function EventInvitationsPage({
   searchParams,
 }: {
   params: { eventId: string };
-  searchParams?: { rotated?: string; error?: string };
+  searchParams?: { rotated?: string; error?: string; design_saved?: string };
 }) {
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}/invitations`);
   const event = getEventIfAuthorized(user.userId, params.eventId);
@@ -30,12 +33,20 @@ export default async function EventInvitationsPage({
   const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
   const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
   const groups = listInvitationGroupsForEvent(user.userId, event.id) ?? [];
+  const invitationConfig = sanitizeInvitationConfig(
+    event.invitationConfig ?? DEFAULT_INVITATION_CONFIG,
+    event.planCode
+  );
+  const canEditDesign = ['platform_admin', 'workspace_owner', 'workspace_admin', 'event_manager', 'couple'].includes(
+    event.myEffectiveRole
+  );
 
   const groupsWithQr = await Promise.all(
     groups.map(async (g) => ({
       ...g,
       qrSvg: await generateQrCodeSvg(g.qrTokenPreview),
       qrPngUrl: await generateQrCodeDataUrl(g.qrTokenPreview),
+      invitationPath: buildInvitationPath(g.publicTokenPreview, invitationConfig, event.planCode),
     }))
   );
 
@@ -66,6 +77,29 @@ export default async function EventInvitationsPage({
             otomatis dinyatakan tidak berlaku)!
           </div>
         )}
+
+        {searchParams?.design_saved && (
+          <div className="rounded-button border border-success/40 bg-success/10 p-3.5 text-xs font-bold text-success">
+            ✓ Desain undangan tersimpan. Semua tautan undangan di bawah sudah memakai desain terbaru.
+          </div>
+        )}
+
+        {searchParams?.error && (
+          <div className="rounded-button border border-danger/40 bg-danger/10 p-3.5 text-xs font-bold text-danger">
+            {searchParams.error}
+          </div>
+        )}
+
+        <InvitationStudio
+          eventId={event.id}
+          plan={event.planCode}
+          initialConfig={invitationConfig}
+          brideName={event.brideName}
+          groomName={event.groomName}
+          eventDate={event.eventDate}
+          venue={event.venue}
+          canEdit={canEditDesign}
+        />
 
         <section className="rounded-card border border-gold/30 bg-surface p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -101,7 +135,7 @@ export default async function EventInvitationsPage({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {groupsWithQr.map((g) => {
-                    const waMessage = `Kepada Yth. ${g.displayName},\n\nTanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara pernikahan ${event.brideName} & ${event.groomName} (${event.eventDate} di ${event.venue}).\n\nSilakan buka tautan undangan khusus Anda, lihat Kartu QR Check-in, & konfirmasi kehadiran (RSVP) melalui:\nhttps://sanstech-wedding-management-system.vercel.app/i/${g.publicTokenPreview}`;
+                    const waMessage = `Kepada Yth. ${g.displayName},\n\nTanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara pernikahan ${event.brideName} & ${event.groomName} (${event.eventDate} di ${event.venue}).\n\nSilakan buka tautan undangan khusus Anda, lihat Kartu QR Check-in, & konfirmasi kehadiran (RSVP) melalui:\nhttps://sanstech-wedding-management-system.vercel.app${g.invitationPath}`;
 
                     const waHref = `https://wa.me/${
                       g.phoneOptional ? g.phoneOptional.replace(/^0/, '62') : ''
@@ -125,10 +159,10 @@ export default async function EventInvitationsPage({
                         </td>
                         <td className="py-3.5 px-3 font-mono text-xs">
                           <Link
-                            href={`/i/${g.publicTokenPreview}`}
+                            href={g.invitationPath}
                             className="text-gold-dark underline font-semibold"
                           >
-                            /i/{g.publicTokenPreview}
+                            /i/{g.publicTokenPreview.slice(0, 14)}…
                           </Link>
                         </td>
                         <td className="py-3.5 px-3 font-mono text-xs">
@@ -144,7 +178,7 @@ export default async function EventInvitationsPage({
                             Unduh PNG
                           </a>
                           <Link
-                            href={`/i/${g.publicTokenPreview}`}
+                            href={g.invitationPath}
                             className="inline-flex items-center rounded border border-navy/30 bg-ivory px-2.5 py-1 text-xs font-bold text-navy hover:bg-gold/15"
                           >
                             Buka Undangan

@@ -3,18 +3,33 @@
 import { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
 
+export interface ScannerGuestOption {
+  id: string;
+  displayName: string;
+  qrTokenPreview: string;
+  guestCategory: string;
+  capacity: number;
+  checkedInCount: number;
+  remainingCapacity: number;
+  tableLabelOptional?: string;
+}
+
 interface CameraQrScannerProps {
   eventId: string;
   initialToken?: string;
   idempotencyKey: string;
+  groups?: ScannerGuestOption[];
 }
 
 export function CameraQrScanner({
   eventId,
   initialToken = '',
   idempotencyKey,
+  groups = [],
 }: CameraQrScannerProps) {
   const [qrToken, setQrToken] = useState(initialToken);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedGuest, setSelectedGuest] = useState<ScannerGuestOption | null>(null);
   const [deltaAttendees, setDeltaAttendees] = useState(1);
   const [cameraActive, setCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
@@ -137,33 +152,98 @@ export function CameraQrScanner({
     animFrameRef.current = requestAnimationFrame(tickScanFrame);
   }
 
+  /** Decode QR dari gambar: latar putih + margin (quiet zone) + beberapa skala agar PNG transparan/kecil/besar tetap terbaca. */
+  function decodeQrFromImage(img: HTMLImageElement): string | null {
+    const targetSizes = [800, 500, 1200, 300];
+    const margin = 48;
+
+    for (const target of targetSizes) {
+      const scale = target / Math.max(img.naturalWidth, img.naturalHeight);
+      const drawW = Math.max(1, Math.round(img.naturalWidth * scale));
+      const drawH = Math.max(1, Math.round(img.naturalHeight * scale));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = drawW + margin * 2;
+      canvas.height = drawH + margin * 2;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) continue;
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, margin, margin, drawW, drawH);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'attemptBoth',
+      });
+      if (code && code.data && code.data.trim().length > 0) {
+        return code.data.trim();
+      }
+    }
+    return null;
+  }
+
   function handleImageFileScan(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     setCameraError(null);
+    setScanDetectedMessage(null);
 
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-        if (code && code.data) {
-          playBeep();
-          setQrToken(code.data.trim());
-          setScanDetectedMessage(`✓ QR dari Gambar Terbaca: ${code.data.trim()}`);
-        } else {
-          setCameraError('Tidak ditemukan matriks QR Code yang valid pada gambar tersebut.');
-        }
-      }
+      const detected = decodeQrFromImage(img);
       URL.revokeObjectURL(objectUrl);
+      input.value = '';
+
+      if (detected) {
+        playBeep();
+        setQrToken(detected);
+        setShowSuggestions(false);
+        setScanDetectedMessage(
+          autoSubmitOnScan
+            ? `✓ QR dari gambar terbaca: ${detected} — memproses check-in…`
+            : `✓ QR dari gambar terbaca: ${detected} — tekan Konfirmasi Kehadiran.`
+        );
+        if (autoSubmitOnScan) {
+          setTimeout(() => formRef.current?.requestSubmit(), 250);
+        }
+      } else {
+        setCameraError(
+          'Tidak ditemukan QR Code yang valid pada gambar. Gunakan gambar QR yang utuh (tidak terpotong) atau ketik nama/kode tamu di kolom di bawah.'
+        );
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      input.value = '';
+      setCameraError('File gambar tidak dapat dibuka. Gunakan format PNG atau JPG.');
     };
     img.src = objectUrl;
+  }
+
+  const normalizedQuery = qrToken.trim().toLowerCase();
+  const suggestions =
+    showSuggestions && normalizedQuery.length >= 1
+      ? groups
+          .filter(
+            (g) =>
+              g.displayName.toLowerCase().includes(normalizedQuery) ||
+              g.qrTokenPreview.toLowerCase().includes(normalizedQuery) ||
+              (g.tableLabelOptional ?? '').toLowerCase().includes(normalizedQuery)
+          )
+          .filter((g) => g.qrTokenPreview.toLowerCase() !== normalizedQuery)
+          .slice(0, 6)
+      : [];
+
+  function selectSuggestion(g: ScannerGuestOption) {
+    setQrToken(g.qrTokenPreview);
+    setDeltaAttendees(1);
+    setSelectedGuest(g);
+    setShowSuggestions(false);
+    setScanDetectedMessage(null);
   }
 
   useEffect(() => {
@@ -285,19 +365,64 @@ export function CameraQrScanner({
         <input type="hidden" name="method" value="qr" />
         <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
 
-        <div>
+        <div className="relative">
           <label className="block text-xs font-bold text-navy mb-1">
-            Kode Token QR Tamu (Terisi Otomatis Saat Kamera Membaca QR / Ketik Manual)
+            Cari Nama Tamu / Kode QR (Terisi Otomatis Saat Kamera Membaca QR)
           </label>
           <input
             name="groupIdOrQrToken"
             type="text"
             required
+            autoComplete="off"
             value={qrToken}
-            onChange={(e) => setQrToken(e.target.value)}
-            placeholder="Arahkan kamera ke QR atau ketik kode QR..."
-            className="w-full min-h-[44px] rounded-button border border-border bg-surface px-3.5 py-2 font-mono text-sm font-bold text-navy"
+            onChange={(e) => {
+              setQrToken(e.target.value);
+              setSelectedGuest(null);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            placeholder="Ketik nama tamu (mis. Budi) atau kode QR..."
+            className="w-full min-h-[44px] rounded-button border border-border bg-surface px-3.5 py-2 text-sm font-bold text-navy"
           />
+
+          {suggestions.length > 0 && (
+            <ul className="absolute z-20 left-0 right-0 mt-1 max-h-72 overflow-y-auto rounded-button border border-gold/50 bg-white shadow-xl divide-y divide-border">
+              {suggestions.map((g) => (
+                <li key={g.id}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectSuggestion(g)}
+                    className="w-full text-left px-3 py-2.5 hover:bg-gold/15 focus:bg-gold/15 transition"
+                  >
+                    <span className="block text-sm font-bold text-navy">{g.displayName}</span>
+                    <span className="block text-[11px] text-ink/65">
+                      {g.guestCategory.toUpperCase()} · {g.tableLabelOptional ?? 'Meja belum diatur'} ·{' '}
+                      {g.remainingCapacity > 0
+                        ? `Sisa ${g.remainingCapacity} dari ${g.capacity} orang`
+                        : 'Kuota penuh (sudah hadir semua)'}{' '}
+                      · <span className="font-mono">{g.qrTokenPreview}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {showSuggestions && normalizedQuery.length >= 1 && suggestions.length === 0 && !selectedGuest && (
+            <p className="mt-1 text-[11px] text-ink/60">
+              Tidak ada tamu yang cocok. Periksa ejaan nama atau pindai QR tamu.
+            </p>
+          )}
+
+          {selectedGuest && (
+            <div className="mt-2 rounded-button border border-success/40 bg-success/10 px-3 py-2 text-xs text-success">
+              <strong>{selectedGuest.displayName}</strong> dipilih — {selectedGuest.guestCategory.toUpperCase()},
+              sisa {selectedGuest.remainingCapacity} dari {selectedGuest.capacity} orang. Atur jumlah hadir lalu
+              tekan Konfirmasi.
+            </div>
+          )}
         </div>
 
         <div>

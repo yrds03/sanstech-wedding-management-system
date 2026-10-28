@@ -1,4 +1,4 @@
-﻿import { notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
 import {
   getAuthorizedWorkspacesForUser,
@@ -56,12 +56,20 @@ export default async function EventReportsPage({
             </p>
           </div>
 
-          <a
-            href={`/api/events/${event.id}/reports/export`}
-            className="min-h-[44px] inline-flex items-center justify-center rounded-button bg-navy border border-gold/50 px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-gold-light shadow hover:bg-navy-light transition"
-          >
-            ðŸ“¥ Download Laporan CSV / Excel
-          </a>
+          <div className="flex flex-col gap-1.5 items-stretch">
+            <a
+              href={`/api/events/${event.id}/reports/export`}
+              className="min-h-[44px] inline-flex items-center justify-center rounded-button bg-navy border border-gold/50 px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-gold-light shadow hover:bg-navy-light transition"
+            >
+              Unduh Laporan Excel (.xlsx)
+            </a>
+            <a
+              href={`/api/events/${event.id}/reports/export?format=csv`}
+              className="text-center text-[11px] font-semibold text-navy/70 underline"
+            >
+              Unduh versi CSV
+            </a>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

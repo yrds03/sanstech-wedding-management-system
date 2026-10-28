@@ -118,6 +118,16 @@ export default async function EventCheckinScannerPage({
               eventId={event.id}
               initialToken={searchParams?.prefill ?? ''}
               idempotencyKey={idempotencyKey}
+              groups={groups.map((g) => ({
+                id: g.id,
+                displayName: g.displayName,
+                qrTokenPreview: g.qrTokenPreview,
+                guestCategory: g.guestCategory,
+                capacity: g.capacity,
+                checkedInCount: g.checkedInCount,
+                remainingCapacity: g.remainingCapacity,
+                tableLabelOptional: g.tableLabelOptional,
+              }))}
             />
 
             {/* Daftar Cepat Klik Simulasi QR */}

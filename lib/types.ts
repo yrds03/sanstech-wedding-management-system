@@ -23,6 +23,24 @@ export type EffectiveRole =
   | 'guest_public';
 
 export type PlanCode = 'free' | 'pro' | 'pro_plus';
+
+export type InvitationThemeStyle =
+  | 'classic_ivory'
+  | 'royal_navy_gold'
+  | 'emerald_botanical'
+  | 'modern_pearl';
+
+/** Konten & desain undangan digital yang dapat dikustomisasi WO (dibatasi per paket). */
+export interface InvitationConfig {
+  themeStyle: InvitationThemeStyle;
+  customGreeting: string;
+  quoteText: string;
+  dressCode: string;
+  mapsUrl: string;
+  digitalGiftBank: string;
+  closingMessage: string;
+  whiteLabelBrandName: string;
+}
 export type GuestCategory = 'regular' | 'vip' | 'vvip';
 export type InvitationGroupType = 'individual' | 'couple' | 'family';
 export type RsvpStatus = 'attending' | 'declined' | 'unsure';
@@ -67,6 +85,7 @@ export interface EventSummary {
   city: string;
   status: EventStatus;
   planCode: PlanCode;
+  invitationConfig?: InvitationConfig;
   licenseStatus: LicenseStatus;
   myEffectiveRole: EffectiveRole;
   metrics: {

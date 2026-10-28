@@ -6,6 +6,8 @@ import { isSupabaseConfigured } from '@/lib/db/supabase-browser';
 import { createSupabaseServerClient } from '@/lib/db/supabase-server';
 
 export const DEV_SESSION_COOKIE_NAME = 'sanstech_dev_session_uid';
+/** Menyimpan akun pemilik/WO saat sedang menyimulasikan peran anggota tim. */
+export const SIMULATION_RETURN_COOKIE_NAME = 'sanstech_sim_return_uid';
 
 /**
  * Mengambil profil pengguna yang sedang masuk secara server-authoritative.
@@ -47,8 +49,9 @@ export async function getCurrentUserServer(): Promise<UserProfile | null> {
 
   const cookieStore = cookies();
   const devUid = cookieStore.get(DEV_SESSION_COOKIE_NAME)?.value;
-  if (devUid && DEMO_USERS[devUid]) {
-    return getUserProfileById(devUid);
+  if (devUid) {
+    const profile = getUserProfileById(devUid) ?? DEMO_USERS[devUid] ?? null;
+    if (profile) return profile;
   }
 
   return null;

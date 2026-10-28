@@ -8,6 +8,7 @@ import {
   EventSummary,
   GuestCategory,
   InvitationGroupDetail,
+  InvitationConfig,
   InvitationGroupType,
   MemberInviteItem,
   PlanCode,
@@ -19,6 +20,7 @@ import {
 } from '@/lib/types';
 import { hasPermission, resolveEffectiveEventRole } from '@/lib/permissions';
 import { canAddInvitationGroup } from '@/lib/plans';
+import { sanitizeInvitationConfig } from '@/lib/invitation/config';
 import { generateOpaqueToken, hashOpaqueToken } from '@/lib/qr/tokens';
 import { loadFromVault, saveToVault } from '@/lib/db/vault';
 
@@ -892,6 +894,51 @@ export function updateEventDetails(params: {
 // SPRINT 2: MANAJEMEN TAMU, KUOTA, QR TOKEN & HAPUS DATA TESTING
 // ============================================================================
 
+export function updateEventInvitationConfig(params: {
+  userId: string;
+  eventId: string;
+  rawConfig: Partial<Record<keyof InvitationConfig, unknown>>;
+}): EventSummary | { error: string } {
+  const existing = getEventIfAuthorized(params.userId, params.eventId);
+  if (!existing) {
+    return { error: 'Acara tidak ditemukan atau Anda tidak memiliki akses.' };
+  }
+
+  const allowedRoles: EffectiveRole[] = [
+    'platform_admin',
+    'workspace_owner',
+    'workspace_admin',
+    'event_manager',
+    'couple',
+  ];
+  if (!allowedRoles.includes(existing.myEffectiveRole)) {
+    return { error: 'Peran Anda tidak diizinkan mengubah desain undangan.' };
+  }
+
+  const store = getStore();
+  const target = store.events.find((e) => e.id === params.eventId);
+  if (!target) return { error: 'Acara tidak ditemukan.' };
+
+  // Batasan paket ditegakkan di server — input yang melampaui paket dibersihkan otomatis.
+  target.invitationConfig = sanitizeInvitationConfig(params.rawConfig, target.planCode);
+
+  const actor = store.users[params.userId];
+  store.auditLogs.unshift({
+    id: `aud-${Date.now()}`,
+    workspaceId: target.workspaceId,
+    eventId: target.id,
+    actorName: actor?.displayName ?? params.userId,
+    action: 'event.invitation_design_updated',
+    entityType: 'event',
+    entityId: target.id,
+    summary: `Memperbarui desain undangan digital (tema: ${target.invitationConfig.themeStyle}).`,
+    createdAt: new Date().toISOString(),
+  });
+
+  saveToVault('store', store);
+  return getEventIfAuthorized(params.userId, params.eventId)!;
+}
+
 export function listInvitationGroupsForEvent(
   userId: string,
   eventId: string,
@@ -1132,11 +1179,21 @@ export function recordEventCheckinOrCorrection(params: {
 
   // 2. Cari grup berdasarkan ID atau QR Token pada acara aktif
   const q = params.groupIdOrQrToken.trim();
-  const group = store.invitationGroups.find(
+  let group = store.invitationGroups.find(
     (g) =>
       g.eventId === ev.id &&
       (g.id === q || g.qrTokenPreview.toLowerCase() === q.toLowerCase())
   );
+
+  // Fallback: petugas mengetik nama tamu secara persis — hanya diterima bila hasilnya tunggal (tidak ambigu).
+  if (!group && q.length >= 2) {
+    const nameMatches = store.invitationGroups.filter(
+      (g) => g.eventId === ev.id && g.displayName.trim().toLowerCase() === q.toLowerCase()
+    );
+    if (nameMatches.length === 1) {
+      group = nameMatches[0];
+    }
+  }
 
   if (!group) {
     return {
@@ -1611,7 +1668,7 @@ export function listMemberInvitesForEvent(
         createdAt: inv.createdAt,
         createdByEmail: inv.createdByEmail,
         inviteUrlPreview: inv.rawTokenForDevPreview
-          ? `/onboarding?invite_token=${inv.rawTokenForDevPreview}`
+          ? `/invite/${inv.rawTokenForDevPreview}`
           : undefined,
       };
     });
@@ -1776,11 +1833,174 @@ export function acceptMemberInviteByToken(params: {
     }
   }
 
+  saveToVault('store', store);
+
   return {
     ok: true,
     eventId: inv.eventId,
     workspaceId: inv.workspaceId,
   };
+}
+
+// ----------------------------------------------------------------------------
+// AKSES ANGGOTA TIM / PASANGAN YANG DIUNDANG (mode sandbox tanpa Supabase)
+// ----------------------------------------------------------------------------
+
+function isInviteUsable(inv: InternalInviteRecord): boolean {
+  return (
+    !inv.revokedAt &&
+    Boolean(inv.eventId) &&
+    Boolean(inv.eventRoleGrant) &&
+    inv.expiresAt >= new Date().toISOString()
+  );
+}
+
+/** Membuat (bila belum ada) profil pengguna untuk email undangan dan mengaktifkan keanggotaan acaranya. */
+function provisionMemberFromInvite(store: StoreState, inv: InternalInviteRecord): string {
+  const email = inv.recipientEmail.toLowerCase().trim();
+  let user = Object.values(store.users).find((u) => u.email.toLowerCase() === email);
+
+  if (!user) {
+    const localPart = email.split('@')[0] ?? 'tamu';
+    const displayName = localPart
+      .split(/[._-]+/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+    user = {
+      userId: `user-inv-${hashOpaqueToken(email).slice(0, 12)}`,
+      email,
+      displayName: displayName || email,
+      isPlatformAdmin: false,
+    };
+    store.users[user.userId] = user;
+  }
+
+  if (inv.eventId && inv.eventRoleGrant) {
+    const existing = store.eventMemberships.find(
+      (em) => em.eventId === inv.eventId && em.userId === user!.userId
+    );
+    if (existing) {
+      existing.role = inv.eventRoleGrant;
+      existing.status = 'active';
+    } else {
+      store.eventMemberships.push({
+        eventId: inv.eventId,
+        userId: user.userId,
+        role: inv.eventRoleGrant,
+        status: 'active',
+      });
+    }
+  }
+
+  if (!inv.acceptedAt) {
+    inv.acceptedAt = new Date().toISOString();
+    store.auditLogs.unshift({
+      id: `aud-${Date.now()}`,
+      workspaceId: inv.workspaceId,
+      eventId: inv.eventId,
+      actorName: user.displayName,
+      action: 'member_invite.accepted',
+      entityType: 'member_invite',
+      entityId: inv.id,
+      summary: `${email} menerima undangan sebagai ${inv.eventRoleGrant ?? 'anggota'}.`,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  return user.userId;
+}
+
+export interface MemberInvitePreview {
+  eventId: string;
+  eventTitle: string;
+  workspaceName: string;
+  recipientEmail: string;
+  roleLabel: string;
+  status: 'pending' | 'accepted' | 'revoked' | 'expired';
+}
+
+/** Melihat ringkasan undangan dari token mentah TANPA mengubah data (aman untuk pratinjau WhatsApp). */
+export function peekMemberInviteByToken(rawToken: string): MemberInvitePreview | null {
+  const store = getStore();
+  const tokenHash = hashOpaqueToken(rawToken);
+  const inv = store.invites.find((i) => i.tokenHash === tokenHash);
+  if (!inv || !inv.eventId) return null;
+  const ev = store.events.find((e) => e.id === inv.eventId);
+  if (!ev) return null;
+
+  let status: MemberInvitePreview['status'] = 'pending';
+  if (inv.revokedAt) status = 'revoked';
+  else if (inv.expiresAt < new Date().toISOString()) status = 'expired';
+  else if (inv.acceptedAt) status = 'accepted';
+
+  return {
+    eventId: ev.id,
+    eventTitle: ev.title,
+    workspaceName: ev.workspaceName,
+    recipientEmail: inv.recipientEmail,
+    roleLabel: inv.eventRoleGrant ?? 'viewer',
+    status,
+  };
+}
+
+/** Menukar token tautan undangan menjadi sesi anggota (dipanggil dari Route Handler POST). */
+export function redeemMemberInviteToken(
+  rawToken: string
+): { ok: true; userId: string; eventId: string } | { ok: false; error: string } {
+  const store = getStore();
+  const tokenHash = hashOpaqueToken(rawToken);
+  const inv = store.invites.find((i) => i.tokenHash === tokenHash);
+
+  if (!inv) return { ok: false, error: 'Tautan undangan tidak valid atau tidak ditemukan.' };
+  if (inv.revokedAt) return { ok: false, error: 'Tautan undangan ini telah dicabut oleh penyelenggara.' };
+  if (inv.expiresAt < new Date().toISOString()) {
+    return { ok: false, error: 'Tautan undangan ini telah kedaluwarsa. Minta penyelenggara membuat tautan baru.' };
+  }
+  if (!isInviteUsable(inv) || !inv.eventId) {
+    return { ok: false, error: 'Undangan ini tidak terhubung ke sebuah acara.' };
+  }
+
+  const userId = provisionMemberFromInvite(store, inv);
+  saveToVault('store', store);
+  return { ok: true, userId, eventId: inv.eventId };
+}
+
+/** Login memakai email yang sudah diundang pada sebuah acara (undangan masih berlaku). */
+export function loginInvitedMemberByEmail(
+  email: string
+): { userId: string; eventId: string } | null {
+  const store = getStore();
+  const clean = email.toLowerCase().trim();
+  const inv = store.invites.find((i) => i.recipientEmail.toLowerCase() === clean && isInviteUsable(i));
+  if (!inv || !inv.eventId) return null;
+
+  const userId = provisionMemberFromInvite(store, inv);
+  saveToVault('store', store);
+  return { userId, eventId: inv.eventId };
+}
+
+/** Pemilik/pengelola menguji tampilan anggota yang diundang dengan satu klik. */
+export function resolveMemberSimulationTarget(params: {
+  actorUserId: string;
+  eventId: string;
+  inviteId: string;
+}): { ok: true; userId: string; eventId: string } | { ok: false; error: string } {
+  const ev = getEventIfAuthorized(params.actorUserId, params.eventId);
+  if (!ev || !hasPermission(ev.myEffectiveRole, 'event:manage_team')) {
+    return { ok: false, error: 'Anda tidak memiliki izin untuk menyimulasikan peran anggota tim.' };
+  }
+
+  const store = getStore();
+  const inv = store.invites.find((i) => i.id === params.inviteId && i.eventId === params.eventId);
+  if (!inv) return { ok: false, error: 'Data undangan anggota tidak ditemukan.' };
+  if (!isInviteUsable(inv)) {
+    return { ok: false, error: 'Undangan ini sudah dicabut atau kedaluwarsa.' };
+  }
+
+  const userId = provisionMemberFromInvite(store, inv);
+  saveToVault('store', store);
+  return { ok: true, userId, eventId: params.eventId };
 }
 
 export function listAuditLogsForEvent(userId: string, eventId: string): AuditLogItem[] {

@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
+import { SIMULATION_RETURN_COOKIE_NAME } from '@/lib/auth/session';
 import {
   BRAND_SHORT_NAME,
   EffectiveRole,
@@ -27,6 +29,8 @@ export function AppShell({
   eventTitle,
   children,
 }: AppShellProps) {
+  const isSimulating = Boolean(cookies().get(SIMULATION_RETURN_COOKIE_NAME)?.value);
+
   const workspaceNav = activeWorkspace
     ? [
         {
@@ -104,6 +108,26 @@ export function AppShell({
 
   return (
     <div className="min-h-screen flex flex-col bg-ivory">
+      {isSimulating && (
+        <div className="no-print bg-gold text-navy-dark px-4 py-2 text-xs font-semibold border-b border-gold-dark/40">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <span>
+              🎭 <strong>Mode Simulasi:</strong> Anda sedang melihat sebagai{' '}
+              <strong>{user.displayName}</strong> ({ROLE_LABELS_ID[effectiveRole]}). Beginilah tampilan yang
+              dilihat anggota tim tersebut.
+            </span>
+            <form action="/api/auth/end-simulation" method="POST">
+              <input type="hidden" name="returnTo" value={eventId ? `/app/e/${eventId}/team` : '/app/workspaces'} />
+              <button
+                type="submit"
+                className="rounded bg-navy-dark px-3 py-1 text-[11px] font-bold text-gold-light hover:bg-navy"
+              >
+                ← Kembali ke Akun Saya
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Top Luxury Bar */}
       <div className="no-print bg-navy-dark text-ivory px-4 py-2 text-xs border-b border-gold/30">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">

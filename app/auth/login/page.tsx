@@ -64,7 +64,6 @@ export default function LoginPage({
               id="password"
               name="password"
               type="password"
-              required
               placeholder="••••••••"
               className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink focus:bg-surface"
             />
@@ -77,6 +76,12 @@ export default function LoginPage({
             Masuk ke Dashboard
           </button>
         </form>
+
+        <div className="mt-4 rounded-button border border-gold/30 bg-gold/10 p-3 text-[11px] text-ink/75 leading-relaxed">
+          <strong>Diundang sebagai Pasangan / Petugas?</strong> Ketik email yang diundang oleh WO (kata sandi
+          boleh dikosongkan pada mode uji coba) — Anda langsung masuk ke acara dengan peran undangan Anda.
+          Atau buka tautan undangan yang dikirim lewat WhatsApp.
+        </div>
 
         <div className="mt-6 pt-5 border-t border-border flex items-center justify-between text-xs text-ink/70">
           <span>

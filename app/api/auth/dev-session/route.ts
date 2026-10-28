@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { DEV_SESSION_COOKIE_NAME } from '@/lib/auth/session';
-import { DEMO_USERS } from '@/lib/db/repository';
+import { DEV_SESSION_COOKIE_NAME, SIMULATION_RETURN_COOKIE_NAME } from '@/lib/auth/session';
+import { DEMO_USERS, getUserProfileById, loginInvitedMemberByEmail } from '@/lib/db/repository';
 import { createAppError } from '@/lib/errors';
 
 const EMAIL_TO_USER_ID: Record<string, string> = {
@@ -28,7 +28,17 @@ export async function POST(request: Request) {
     if (EMAIL_TO_USER_ID[emailInput]) {
       resolvedUserId = EMAIL_TO_USER_ID[emailInput];
     } else {
-      resolvedUserId = 'user-wo-a';
+      // Email yang sudah diundang pada sebuah acara (Pasangan, Supervisor, Scanner, Usher, dst.)
+      // masuk langsung dengan peran undangannya dan diarahkan ke acara tersebut.
+      const invited = loginInvitedMemberByEmail(emailInput);
+      if (invited) {
+        resolvedUserId = invited.userId;
+        if (redirectPath === '/app/workspaces') {
+          redirectPath = `/app/e/${invited.eventId}`;
+        }
+      } else {
+        resolvedUserId = 'user-wo-a';
+      }
     }
 
     // Jika Super Admin login via form email, periksa kata sandi admin atau demo
@@ -54,7 +64,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (!resolvedUserId || !DEMO_USERS[resolvedUserId]) {
+  if (!resolvedUserId || !(getUserProfileById(resolvedUserId) ?? DEMO_USERS[resolvedUserId])) {
     return NextResponse.json(
       createAppError('VALIDATION_ERROR', 'Akun pengguna tidak ditemukan.'),
       { status: 400 }
@@ -62,6 +72,8 @@ export async function POST(request: Request) {
   }
 
   const cookieStore = cookies();
+  // Login manual memutus mode simulasi peran yang mungkin sedang aktif.
+  cookieStore.delete(SIMULATION_RETURN_COOKIE_NAME);
   cookieStore.set(DEV_SESSION_COOKIE_NAME, resolvedUserId, {
     httpOnly: true,
     sameSite: 'lax',
