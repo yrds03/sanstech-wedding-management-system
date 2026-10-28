@@ -11,6 +11,7 @@ import {
 import { AppShell } from '@/components/app/app-shell';
 import { Badge } from '@/components/ui/primitives';
 import { hasPermission } from '@/lib/permissions';
+import { CameraQrScanner } from '@/components/checkin/camera-qr-scanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,50 +114,11 @@ export default async function EventCheckinScannerPage({
               jumlah orang yang datang:
             </p>
 
-            <form
-              action={`/api/events/${event.id}/checkins`}
-              method="POST"
-              className="space-y-4 rounded-button border border-border bg-ivory/60 p-4"
-            >
-              <input type="hidden" name="method" value="qr" />
-              <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
-
-              <div>
-                <label className="block text-xs font-bold text-navy mb-1">
-                  Kode Token QR Tamu
-                </label>
-                <input
-                  name="groupIdOrQrToken"
-                  type="text"
-                  required
-                  defaultValue={searchParams?.prefill ?? groups[0]?.qrTokenPreview ?? ''}
-                  placeholder="Contoh: QR-ANDI-VVIP-001"
-                  className="w-full min-h-[44px] rounded-button border border-border bg-surface px-3.5 py-2 font-mono text-sm font-bold text-navy"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-navy mb-1">
-                  Jumlah Orang yang Hadir Saat Ini (Mendukung Kedatangan Parsial Keluarga)
-                </label>
-                <input
-                  name="deltaAttendees"
-                  type="number"
-                  min={1}
-                  max={20}
-                  required
-                  defaultValue={1}
-                  className="w-full min-h-[44px] rounded-button border border-border bg-surface px-3.5 py-2 text-sm font-bold text-navy tabular-nums"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full min-h-[48px] rounded-button bg-navy border border-gold/50 px-5 py-3 text-xs font-bold uppercase tracking-widest text-gold-light hover:bg-navy-light transition shadow"
-              >
-                ✓ Konfirmasi Kehadiran QR Sekarang
-              </button>
-            </form>
+            <CameraQrScanner
+              eventId={event.id}
+              initialToken={searchParams?.prefill ?? ''}
+              idempotencyKey={idempotencyKey}
+            />
 
             {/* Daftar Cepat Klik Simulasi QR */}
             <div className="pt-2">

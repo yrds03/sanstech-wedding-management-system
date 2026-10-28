@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUserServer } from '@/lib/auth/session';
 import { createAppError, getHttpStatusForError } from '@/lib/errors';
 import { getAddOnsCatalog, updatePlatformPricingAndRetention } from '@/lib/plans';
-import { updateEventPlanByAdmin } from '@/lib/db/repository';
+import { resetAllDataToZero, updateEventPlanByAdmin } from '@/lib/db/repository';
 import { PlanCode } from '@/lib/types';
 import { verifySameOriginMutation } from '@/lib/security/rate-limit';
 
@@ -26,6 +26,19 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const action = String(formData.get('action') ?? 'update_pricing');
+
+  if (action === 'reset_all_to_zero') {
+    resetAllDataToZero();
+    return NextResponse.redirect(
+      new URL(
+        `/admin?notice=${encodeURIComponent(
+          'Seluruh data acara, daftar tamu, dan riwayat check-in telah dikosongkan total kembali ke 0!'
+        )}`,
+        request.url
+      ),
+      303
+    );
+  }
 
   if (action === 'activate_event_plan') {
     const eventId = String(formData.get('eventId') ?? '');

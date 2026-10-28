@@ -10,6 +10,7 @@ import {
 import { AppShell } from '@/components/app/app-shell';
 import { Badge, EmptyState } from '@/components/ui/primitives';
 import { getPlansCatalog } from '@/lib/plans';
+import { BatchImportBox } from '@/components/guests/batch-import-box';
 
 export const dynamic = 'force-dynamic';
 
@@ -240,7 +241,7 @@ export default async function EventGuestsPage({
             </form>
           </section>
 
-          {/* Import Massal CSV / Excel Copy-Paste */}
+          {/* Import Massal CSV / Excel Copy-Paste & File Upload */}
           <section className="rounded-card border border-gold/30 bg-surface p-6 shadow-sm flex flex-col justify-between">
             <div>
               <Badge variant="gold">IMPORT CEPAT (S09)</Badge>
@@ -248,35 +249,15 @@ export default async function EventGuestsPage({
                 Import Batch dari Excel / CSV
               </h2>
               <p className="mt-1 text-xs text-ink/65 leading-relaxed">
-                Tempelkan baris dari Excel/CSV dengan format:{' '}
-                <code>Nama Penerima, Kuota, Kategori, Meja</code>
+                Unduh template resmi di bawah ini, isi daftar tamu di Microsoft Excel, lalu upload
+                kembali file <code>.csv</code> Anda:
               </p>
 
-              <form
-                action={`/api/events/${event.id}/guests`}
-                method="POST"
-                className="mt-4 space-y-3"
-              >
-                <input type="hidden" name="action" value="import_csv_lines" />
-                <textarea
-                  name="csvLines"
-                  rows={6}
-                  required
-                  defaultValue={`Keluarga Besar Bpk. Hartono, 4, vvip, Meja VVIP 02\nDr. Amelia Putri & Partner, 2, vip, Meja VIP 05\nReza Rahadian, 1, regular, Meja Mawar 01`}
-                  className="w-full rounded-button border border-border bg-ivory/60 p-3 text-xs font-mono text-ink"
-                />
-                <button
-                  type="submit"
-                  className="w-full min-h-[42px] rounded-button border border-navy bg-ivory px-4 py-2 text-xs font-bold uppercase tracking-wider text-navy hover:bg-navy hover:text-gold-light transition"
-                >
-                  Import Semua Baris Sekaligus
-                </button>
-              </form>
+              <BatchImportBox
+                eventId={event.id}
+                maxGroupsLimit={plan.limits.maxInvitationGroups}
+              />
             </div>
-            <p className="mt-4 text-[11px] text-ink/55">
-              *Backend otomatis memvalidasi sisa kuota paket ({plan.limits.maxInvitationGroups} grup)
-              sebelum menyimpan.
-            </p>
           </section>
         </div>
 

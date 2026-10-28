@@ -382,13 +382,75 @@ function createInitialDevState(): StoreState {
   return state;
 }
 
+function createCleanZeroState(): StoreState {
+  return {
+    users: { ...DEMO_USERS },
+    workspaces: [
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        type: 'wo',
+        name: 'SANSTECH Signature Organizer',
+        slug: 'sanstech-signature-wo',
+        ownerUserId: 'user-wo-a',
+        createdAt: '2026-10-20T08:00:00.000Z',
+      },
+      {
+        id: '22222222-2222-4222-8222-222222222222',
+        type: 'personal',
+        name: 'Workspace Pasangan Pengantin',
+        slug: 'workspace-pengantin',
+        ownerUserId: 'user-couple-andi',
+        createdAt: '2026-10-21T09:00:00.000Z',
+      },
+      {
+        id: '33333333-3333-4333-8333-333333333333',
+        type: 'wo',
+        name: 'Lusiana Wedding Planner (Tenant B)',
+        slug: 'lusiana-wedding-planner',
+        ownerUserId: 'user-wo-b',
+        createdAt: '2026-10-22T10:00:00.000Z',
+      },
+    ],
+    workspaceMemberships: [
+      {
+        workspaceId: '11111111-1111-4111-8111-111111111111',
+        userId: 'user-wo-a',
+        role: 'owner',
+        status: 'active',
+      },
+      {
+        workspaceId: '22222222-2222-4222-8222-222222222222',
+        userId: 'user-couple-andi',
+        role: 'owner',
+        status: 'active',
+      },
+      {
+        workspaceId: '33333333-3333-4333-8333-333333333333',
+        userId: 'user-wo-b',
+        role: 'owner',
+        status: 'active',
+      },
+    ],
+    events: [],
+    eventMemberships: [],
+    invitationGroups: [],
+    checkinLedger: [],
+    invites: [],
+    auditLogs: [],
+  };
+}
+
 const globalForStore = globalThis as unknown as { __sanstechStore?: StoreState };
 
 function getStore(): StoreState {
   if (!globalForStore.__sanstechStore) {
-    globalForStore.__sanstechStore = createInitialDevState();
+    globalForStore.__sanstechStore = createCleanZeroState();
   }
   return globalForStore.__sanstechStore;
+}
+
+export function resetAllDataToZero(): void {
+  globalForStore.__sanstechStore = createCleanZeroState();
 }
 
 function recalculateEventMetrics(eventId: string): void {
@@ -609,6 +671,7 @@ export function createEventInWorkspace(params: {
   city: string;
   address: string;
   status?: EventStatus;
+  planCode?: PlanCode;
 }): EventSummary | { error: string } {
   const ws = getWorkspaceIfAuthorized(params.userId, params.workspaceId);
   if (!ws || (ws.role !== 'owner' && ws.role !== 'admin')) {
@@ -617,6 +680,7 @@ export function createEventInWorkspace(params: {
 
   const store = getStore();
   const newEventId = crypto.randomUUID();
+  const chosenPlan: PlanCode = params.planCode ?? 'free';
   const newEvent: EventSummary = {
     id: newEventId,
     workspaceId: ws.id,
@@ -632,8 +696,8 @@ export function createEventInWorkspace(params: {
     venue: params.venue,
     city: params.city,
     address: params.address,
-    status: params.status ?? 'draft',
-    planCode: 'free',
+    status: params.status ?? 'published',
+    planCode: chosenPlan,
     licenseStatus: 'active',
     myEffectiveRole: ws.role === 'owner' ? 'workspace_owner' : 'workspace_admin',
     metrics: {
@@ -1162,9 +1226,23 @@ export function getPublicInvitationByToken(rawToken: string): {
 }
 
 /**
+ * Menghasilkan 6-digit Kode Pairing TV/LED Panggung dari ID Acara
+ * sehingga Smart TV atau Laptop Operator Multimedia di Panggung dapat terhubung
+ * cukup dengan mengetik 6 angka di halaman `/tv`.
+ */
+export function getEventTvPairingCode(eventId: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < eventId.length; i++) {
+    hash ^= eventId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const num = (Math.abs(hash) % 900000) + 100000;
+  return String(num);
+}
+
+/**
  * Mengambil state layar sambutan TV/LED secara aman tanpa membocorkan catatan privat.
- * Jika eventId tidak ditemukan di memori serverless (mis. acara baru dibuat di tab lain),
- * otomatis menyediakan fallback tampilan sambutan elegan agar TV Ballroom TIDAK PERNAH 404.
+ * Mendukung pencarian berdasarkan `eventId` penuh MAUPUN `6-Digit Kode Pairing TV`.
  */
 export function getDisplayScreenState(sessionIdOrEventId: string): {
   event: EventSummary;
@@ -1173,12 +1251,54 @@ export function getDisplayScreenState(sessionIdOrEventId: string): {
   lastUpdatedIso: string;
 } {
   const store = getStore();
-  const cleanId = sessionIdOrEventId.trim();
+  const cleanId = sessionIdOrEventId.trim().replace(/[\s-]/g, '');
 
-  let event = store.events.find((e) => e.id === cleanId);
-  if (!event) {
-    // Fallback ke acara utama agar layar TV tetap hidup meskipun serverless cold-start
+  let event = store.events.find(
+    (e) =>
+      e.id === sessionIdOrEventId.trim() ||
+      getEventTvPairingCode(e.id) === cleanId
+  );
+
+  if (!event && store.events.length > 0) {
     event = store.events[0]!;
+  }
+
+  if (!event) {
+    // Jika mulai dari 0 dan belum ada acara yang dibuat sama sekali
+    return {
+      event: {
+        id: 'standby-tv',
+        workspaceId: '11111111-1111-4111-8111-111111111111',
+        workspaceName: 'SANSTECH Wedding Management System',
+        workspaceType: 'wo',
+        title: 'Layar Sambutan Siap Dihubungkan',
+        brideName: 'Mempelai Wanita',
+        groomName: 'Mempelai Pria',
+        eventDate: new Date().toISOString().slice(0, 10),
+        startTime: '18:00',
+        endTime: '21:00',
+        timezone: 'Asia/Jakarta',
+        venue: 'Silakan Buat Acara Baru di Dashboard WO untuk Menghubungkan Layar TV',
+        address: '',
+        city: 'Indonesia',
+        status: 'published',
+        planCode: 'pro_plus',
+        licenseStatus: 'active',
+        myEffectiveRole: 'guest_public',
+        metrics: {
+          invitationGroupsCount: 0,
+          invitedCapacityTotal: 0,
+          rsvpAttendingCount: 0,
+          checkedInPersonsCount: 0,
+          checkedInGroupsCount: 0,
+          vipCheckedInCount: 0,
+          vipTotalCount: 0,
+        },
+      },
+      latestPublicWelcome: null,
+      totalCheckedInPersons: 0,
+      lastUpdatedIso: new Date().toISOString(),
+    };
   }
 
   recalculateEventMetrics(event.id);

@@ -109,15 +109,18 @@ export default async function WorkspaceEventsPage({
           </div>
         )}
 
-        {/* Formulir Buat Acara Baru (S1-03 / S07) */}
+        {/* Formulir Buat Order & Acara Baru dari 0 (S1-03 / S07) */}
         <section
           id="buat-acara"
-          className="rounded-card border border-border bg-surface p-6 sm:p-8 shadow-sm"
+          className="rounded-card border-2 border-gold/40 bg-surface p-6 sm:p-8 shadow-sm"
         >
-          <h2 className="text-lg font-bold text-navy">Buat Acara Pernikahan Baru</h2>
+          <Badge variant="gold">LANGKAH 1: ORDER &amp; PEMBUATAN ACARA BARU</Badge>
+          <h2 className="mt-2 font-serif text-2xl font-bold text-navy">
+            Buat Order &amp; Persiapan Acara Pernikahan Baru (Mulai dari 0)
+          </h2>
           <p className="mt-1 text-xs text-ink/65">
-            Setiap acara yang baru dibuat otomatis mendapatkan lisensi <strong>Paket Free</strong>{' '}
-            (maksimal 50 grup undangan &amp; 1 perangkat scanner aktif).
+            Masukkan data mempelai, tanggal, gedung resepsi, dan pilih paket lisensi acara yang
+            dipesan klien.
           </p>
 
           <form action="/api/events" method="POST" className="mt-6 space-y-4">
@@ -125,6 +128,28 @@ export default async function WorkspaceEventsPage({
             <input type="hidden" name="workspaceId" value={workspace.id} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label htmlFor="planCode" className="block text-xs font-bold text-navy mb-1.5">
+                  Pilih Paket Order Acara Klien
+                </label>
+                <select
+                  id="planCode"
+                  name="planCode"
+                  defaultValue="pro_plus"
+                  className="w-full min-h-[44px] rounded-button border-2 border-gold/50 bg-ivory px-3.5 py-2 text-sm font-bold text-navy"
+                >
+                  <option value="pro_plus">
+                    Royal Grand / Pro Plus (Maks. 2.000 Undangan · Full TV LED + VIP Usher + Import Excel)
+                  </option>
+                  <option value="pro">
+                    Signature Pro (Maks. 500 Undangan · TV LED + Import Excel)
+                  </option>
+                  <option value="free">
+                    Free Trial / Intimate (Maks. 50 Undangan · 1 Scanner)
+                  </option>
+                </select>
+              </div>
+
               <div className="sm:col-span-2">
                 <label htmlFor="title" className="block text-xs font-semibold text-navy mb-1.5">
                   Nama / Judul Acara

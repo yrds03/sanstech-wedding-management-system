@@ -3,6 +3,7 @@ import { getCurrentUserServer } from '@/lib/auth/session';
 import { createAppError, getHttpStatusForError } from '@/lib/errors';
 import { createOrUpdateEventSchema } from '@/lib/validators';
 import { createEventInWorkspace, updateEventDetails } from '@/lib/db/repository';
+import { PlanCode } from '@/lib/types';
 
 export async function POST(request: Request) {
   const user = await getCurrentUserServer();
@@ -16,15 +17,23 @@ export async function POST(request: Request) {
   let rawPayload: Record<string, unknown> = {};
   let mode = 'create';
   let eventIdToUpdate = '';
+  let planCode: PlanCode = 'pro_plus';
 
   if (contentType.includes('application/json')) {
     rawPayload = (await request.json()) as Record<string, unknown>;
     mode = String(rawPayload.mode ?? 'create');
     eventIdToUpdate = String(rawPayload.eventId ?? '');
+    if (rawPayload.planCode === 'free' || rawPayload.planCode === 'pro' || rawPayload.planCode === 'pro_plus') {
+      planCode = rawPayload.planCode;
+    }
   } else {
     const formData = await request.formData();
     mode = String(formData.get('mode') ?? 'create');
     eventIdToUpdate = String(formData.get('eventId') ?? '');
+    const rawPlan = String(formData.get('planCode') ?? 'pro_plus');
+    if (rawPlan === 'free' || rawPlan === 'pro' || rawPlan === 'pro_plus') {
+      planCode = rawPlan;
+    }
     rawPayload = {
       workspaceId: String(formData.get('workspaceId') ?? ''),
       title: String(formData.get('title') ?? ''),
@@ -37,7 +46,7 @@ export async function POST(request: Request) {
       venue: String(formData.get('venue') ?? ''),
       city: String(formData.get('city') ?? ''),
       address: String(formData.get('address') ?? ''),
-      status: String(formData.get('status') ?? 'draft'),
+      status: String(formData.get('status') ?? 'published'),
     };
   }
 
@@ -89,6 +98,7 @@ export async function POST(request: Request) {
 
   const created = createEventInWorkspace({
     userId: user.userId,
+    planCode,
     ...parsed.data,
   });
 

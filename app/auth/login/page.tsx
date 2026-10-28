@@ -1,14 +1,11 @@
 import Link from 'next/link';
 import { BRAND_NAME } from '@/lib/types';
-import { isSupabaseConfigured } from '@/lib/db/supabase-browser';
-import { Badge } from '@/components/ui/primitives';
 
 export default function LoginPage({
   searchParams,
 }: {
   searchParams?: { next?: string; error?: string };
 }) {
-  const supabaseReady = isSupabaseConfigured();
   const nextUrl = searchParams?.next ?? '/app/workspaces';
 
   return (
@@ -21,7 +18,7 @@ export default function LoginPage({
           >
             S
           </Link>
-          <h1 className="mt-4 font-serif text-2xl font-bold text-navy">Selamat Datang Kembali</h1>
+          <h1 className="mt-4 font-serif text-2xl font-bold text-navy">Masuk ke Akun Anda</h1>
           <p className="mt-1 text-xs text-ink/60">{BRAND_NAME}</p>
         </div>
 
@@ -34,7 +31,6 @@ export default function LoginPage({
           </div>
         )}
 
-        {/* Form Login Utama (Mendukung Email WO, Pengantin, maupun Super Admin) */}
         <form action="/api/auth/dev-session" method="POST" className="mt-6 space-y-4">
           <input type="hidden" name="redirectTo" value={nextUrl} />
 
@@ -47,8 +43,7 @@ export default function LoginPage({
               name="email"
               type="email"
               required
-              defaultValue="owner@sanstech-wo.id"
-              placeholder="nama@contoh.com"
+              placeholder="Masukkan alamat email resmi Anda"
               className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink focus:bg-surface"
             />
           </div>
@@ -70,7 +65,6 @@ export default function LoginPage({
               name="password"
               type="password"
               required
-              defaultValue="sanstech-demo-password"
               placeholder="••••••••"
               className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink focus:bg-surface"
             />
@@ -84,99 +78,17 @@ export default function LoginPage({
           </button>
         </form>
 
-        {/* Panel Uji Cepat Multi-Peran (Tampil Selama Mode Testing / Sandbox) */}
-        {!supabaseReady && (
-          <div className="mt-6 pt-6 border-t border-border">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-navy">
-                Akses Cepat Simulasi Tim WO &amp; Super Admin
-              </p>
-              <Badge variant="gold">1-Klik Login</Badge>
-            </div>
-            <p className="text-xs text-ink/65 mb-3 leading-relaxed">
-              Klik salah satu tombol di bawah ini untuk langsung masuk tanpa mengetik ulang:
-            </p>
-
-            <div className="space-y-2.5">
-              <form action="/api/auth/dev-session" method="POST">
-                <input type="hidden" name="userId" value="user-wo-a" />
-                <input type="hidden" name="redirectTo" value="/app/workspaces" />
-                <button
-                  type="submit"
-                  className="w-full text-left rounded-button border border-border bg-ivory hover:bg-gold/10 px-3.5 py-2.5 text-xs transition flex items-center justify-between"
-                >
-                  <div>
-                    <strong className="text-navy block">1. Owner Wedding Organizer A</strong>
-                    <span className="text-ink/60">
-                      Email: owner@sanstech-wo.id · Pass: sanstech-demo-password
-                    </span>
-                  </div>
-                  <span className="font-semibold text-navy">Masuk &rarr;</span>
-                </button>
-              </form>
-
-              <form action="/api/auth/dev-session" method="POST">
-                <input type="hidden" name="userId" value="user-couple-andi" />
-                <input type="hidden" name="redirectTo" value="/app/workspaces" />
-                <button
-                  type="submit"
-                  className="w-full text-left rounded-button border border-border bg-ivory hover:bg-gold/10 px-3.5 py-2.5 text-xs transition flex items-center justify-between"
-                >
-                  <div>
-                    <strong className="text-navy block">2. Calon Pengantin (Andi &amp; Putri)</strong>
-                    <span className="text-ink/60">
-                      Email: andi.putri@contoh.id · Pass: sanstech-demo-password
-                    </span>
-                  </div>
-                  <span className="font-semibold text-navy">Masuk &rarr;</span>
-                </button>
-              </form>
-
-              <form action="/api/auth/dev-session" method="POST">
-                <input type="hidden" name="userId" value="user-wo-b" />
-                <input type="hidden" name="redirectTo" value="/app/workspaces" />
-                <button
-                  type="submit"
-                  className="w-full text-left rounded-button border border-border bg-ivory hover:bg-gold/10 px-3.5 py-2.5 text-xs transition flex items-center justify-between"
-                >
-                  <div>
-                    <strong className="text-navy block">3. Owner WO Tenant B (Uji Isolasi)</strong>
-                    <span className="text-ink/60">
-                      Email: admin@lusiana-organizer.id · Pass: sanstech-demo-password
-                    </span>
-                  </div>
-                  <span className="font-semibold text-navy">Masuk &rarr;</span>
-                </button>
-              </form>
-
-              <form action="/api/auth/dev-session" method="POST">
-                <input type="hidden" name="userId" value="user-platform-admin" />
-                <input type="hidden" name="redirectTo" value="/admin" />
-                <button
-                  type="submit"
-                  className="w-full text-left rounded-button border border-gold/50 bg-navy text-ivory hover:bg-navy-light px-3.5 py-2.5 text-xs transition flex items-center justify-between"
-                >
-                  <div>
-                    <strong className="text-gold-light block">
-                      4. 🔐 Super Admin Pemilik Sistem (Atur Harga &amp; Add-On)
-                    </strong>
-                    <span className="text-ivory/80">
-                      Email: superadmin@sanstech.id · Pass: SanstechAdmin#2026
-                    </span>
-                  </div>
-                  <span className="font-semibold text-gold-light">Buka /admin &rarr;</span>
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-
-        <p className="mt-6 text-center text-xs text-ink/70">
-          Belum punya akun?{' '}
-          <Link href="/auth/register" className="font-semibold text-navy hover:underline">
-            Daftar sekarang
+        <div className="mt-6 pt-5 border-t border-border flex items-center justify-between text-xs text-ink/70">
+          <span>
+            Belum punya akun?{' '}
+            <Link href="/auth/register" className="font-semibold text-navy hover:underline">
+              Daftar baru
+            </Link>
+          </span>
+          <Link href="/tv" className="font-bold text-gold-dark hover:underline">
+            📺 Hubungkan TV / LED
           </Link>
-        </p>
+        </div>
       </div>
     </div>
   );

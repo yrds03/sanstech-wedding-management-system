@@ -22,6 +22,9 @@ export default async function LandingPage() {
             ✦ SANSTECH HOSPITALITY &amp; ROYAL WEDDING SUITE · ENTERPRISE MULTI-TENANT SECURITY
           </span>
           <div className="flex items-center gap-4">
+            <Link href="/tv" className="hover:text-white underline underline-offset-4">
+              📺 Koneksi TV / LED Panggung (/tv)
+            </Link>
             <Link href="/panduan" className="hover:text-white underline underline-offset-4">
               Buku Pedoman Operasional Lengkap (Cetak PDF)
             </Link>

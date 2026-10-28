@@ -103,7 +103,7 @@ export default async function PlatformAdminPage({
                   name="proPriceIdr"
                   type="number"
                   min={0}
-                  step={50000}
+                  step={1}
                   defaultValue={catalog.pro.priceIdr}
                   className="w-full min-h-[44px] rounded-button border border-border bg-ivory/60 px-3.5 py-2 text-sm font-bold text-navy tabular-nums"
                 />
@@ -122,7 +122,7 @@ export default async function PlatformAdminPage({
                   name="proPlusPriceIdr"
                   type="number"
                   min={0}
-                  step={50000}
+                  step={1}
                   defaultValue={catalog.pro_plus.priceIdr}
                   className="w-full min-h-[44px] rounded-button border border-border bg-ivory/60 px-3.5 py-2 text-sm font-bold text-navy tabular-nums"
                 />
@@ -184,7 +184,7 @@ export default async function PlatformAdminPage({
                       name={`addon_${addon.code}`}
                       type="number"
                       min={0}
-                      step={25000}
+                      step={1}
                       defaultValue={addon.priceIdr}
                       className="w-full min-h-[36px] rounded-button border border-border bg-surface px-2.5 py-1 text-xs font-bold text-navy tabular-nums"
                     />
@@ -204,17 +204,38 @@ export default async function PlatformAdminPage({
 
         {/* 3. Aktivasi Manual Lisensi Paket Per Acara */}
         <section className="rounded-card border border-gold/30 bg-surface p-6 sm:p-7 shadow-sm">
-          <h2 className="font-serif text-2xl font-bold text-navy">
-            3. Aktivasi / Ubah Paket Lisensi Acara Klien
-          </h2>
-          <p className="mt-1 text-xs text-ink/65 leading-relaxed">
-            Ketika klien WO atau pengantin telah melunasi pembayaran kepada Anda, aktifkan paket{' '}
-            <strong>Signature Pro</strong> atau <strong>Royal Grand (Pro Plus)</strong> untuk acara
-            mereka di sini:
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-2xl font-bold text-navy">
+                3. Aktivasi / Ubah Paket Lisensi Acara Klien ({events.length} Acara)
+              </h2>
+              <p className="mt-1 text-xs text-ink/65 leading-relaxed">
+                Ketika klien WO atau pengantin telah membuat acara dan melunasi pembayaran, aktifkan
+                paket <strong>Signature Pro</strong> atau <strong>Royal Grand (Pro Plus)</strong>{' '}
+                untuk acara mereka di sini:
+              </p>
+            </div>
+
+            <form action="/api/admin/pricing" method="POST">
+              <input type="hidden" name="action" value="reset_all_to_zero" />
+              <button
+                type="submit"
+                className="min-h-[40px] rounded-button border border-danger/50 bg-danger/10 px-4 py-2 text-xs font-bold text-danger hover:bg-danger hover:text-white transition"
+              >
+                🗑️ Kosongkan Semua Acara &amp; Mulai dari 0
+              </button>
+            </form>
+          </div>
 
           <div className="mt-5 space-y-3">
-            {events.map((ev) => (
+            {events.length === 0 ? (
+              <div className="rounded-button border border-dashed border-gold/40 bg-ivory/60 p-6 text-center text-xs text-ink/70">
+                Sistem saat ini bersih (0 Acara). Silakan masuk ke akun WO (
+                <code>owner@sanstech-wo.id</code>) atau Pengantin untuk mulai membuat Order Acara
+                pertama dari 0.
+              </div>
+            ) : (
+              events.map((ev) => (
               <div
                 key={ev.id}
                 className="rounded-button border border-border bg-ivory/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -251,7 +272,8 @@ export default async function PlatformAdminPage({
                   </button>
                 </form>
               </div>
-            ))}
+            ))
+            )}
           </div>
         </section>
       </div>
