@@ -1,5 +1,6 @@
 import { PlanCode } from '@/lib/types';
 import { formatCurrencyIdr } from '@/lib/dates';
+import { loadFromVault, saveToVault } from '@/lib/db/vault';
 
 export interface PlanDefinition {
   code: PlanCode;
@@ -76,6 +77,11 @@ const globalPricing = globalThis as unknown as {
 };
 
 function getPricingStore(): GlobalPricingAndRetentionStore {
+  const fromVault = loadFromVault<GlobalPricingAndRetentionStore>('pricing');
+  if (fromVault && typeof fromVault.proPriceIdr === 'number') {
+    globalPricing.__sanstechPricingStore = fromVault;
+    return globalPricing.__sanstechPricingStore;
+  }
   if (!globalPricing.__sanstechPricingStore) {
     globalPricing.__sanstechPricingStore = {
       proPriceIdr: 1490000,
@@ -302,6 +308,7 @@ export function updatePlatformPricingAndRetention(params: {
       }
     }
   }
+  saveToVault('pricing', store);
 }
 
 export function getPostEventRetentionConfig(): PostEventRetentionConfig {

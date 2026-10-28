@@ -6,10 +6,17 @@ import {
 } from '@/lib/permissions';
 import {
   acceptMemberInviteByToken,
+  addInvitationGroupToEvent,
+  createEventInWorkspace,
   createEventMemberInvite,
   createWorkspaceForUser,
+  getAuthorizedEventsForWorkspace,
   getEventIfAuthorized,
+  getEventTvPairingCode,
+  getPublicInvitationByToken,
   getWorkspaceIfAuthorized,
+  recordEventCheckinOrCorrection,
+  resetAllDataToZero,
   resetDevStoreForTests,
   revokeEventMemberInvite,
 } from '@/lib/db/repository';
@@ -273,6 +280,92 @@ describe('SANSTECH Wedding Management System — Sprint 0 & 1 Security, RBAC & I
     const displayState = getDisplayScreenState('unknown-or-new-session-id');
     expect(displayState).not.toBeNull();
     expect(displayState?.event.brideName).toBeDefined();
+  });
+
+  it('Full End-to-End Backtest dari 0: Reset ke 0 -> Buat Workspace -> Buat Acara -> Tambah Tamu -> Buka Undangan Portable -> Pairing TV 6-Digit -> Scan QR -> Muncul di TV', () => {
+    // 1. Kosongkan sistem ke 0 (Zero State)
+    resetAllDataToZero();
+    const initialEvents = getAuthorizedEventsForWorkspace(
+      'user-wo-a',
+      '11111111-1111-4111-8111-111111111111'
+    );
+    expect(initialEvents?.length).toBe(0);
+
+    // 2. Buat Workspace Baru dari Onboarding
+    const wsCreated = createWorkspaceForUser({
+      userId: 'user-wo-a',
+      type: 'wo',
+      name: 'SANSTECH Prime WO',
+      slug: 'sanstech-prime-wo',
+      idempotencyKey: 'e2e-ws-key-001',
+    });
+    expect(wsCreated.workspace.id).toBeDefined();
+    expect(getWorkspaceIfAuthorized('user-wo-a', wsCreated.workspace.id)).not.toBeNull();
+
+    // 3. Buat Acara Pernikahan Baru (Order Paket Royal Grand / Pro Plus)
+    const evCreated = createEventInWorkspace({
+      userId: 'user-wo-a',
+      workspaceId: wsCreated.workspace.id,
+      title: 'The Royal Wedding of Rian & Nadya',
+      brideName: 'Nadya Kusuma',
+      groomName: 'Rian Saputra',
+      eventDate: '2026-12-20',
+      startTime: '18:30',
+      endTime: '21:30',
+      timezone: 'Asia/Jakarta',
+      venue: 'Grand Ballroom Kempinski',
+      city: 'Jakarta Pusat',
+      address: 'Jl. M.H. Thamrin No. 1',
+      planCode: 'pro_plus',
+    });
+    expect('id' in evCreated).toBe(true);
+    if (!('id' in evCreated)) return;
+
+    const fetchedEv = getEventIfAuthorized('user-wo-a', evCreated.id);
+    expect(fetchedEv?.title).toBe('The Royal Wedding of Rian & Nadya');
+    expect(fetchedEv?.planCode).toBe('pro_plus');
+
+    // 4. Tambah Tamu VVIP dengan Izin Tampil TV = true
+    const guestAdded = addInvitationGroupToEvent({
+      userId: 'user-wo-a',
+      eventId: evCreated.id,
+      displayName: 'Bapak H. Sudirman & Ibu',
+      type: 'couple',
+      capacity: 2,
+      guestCategory: 'vvip',
+      tableLabelOptional: 'Meja VVIP 01',
+      allowedPublicDisplay: true,
+    });
+    expect('group' in guestAdded).toBe(true);
+    if (!('group' in guestAdded)) return;
+
+    // 5. Uji buka tautan undangan publik (/i/[publicToken])
+    const pubInvite = getPublicInvitationByToken(guestAdded.group.publicTokenPreview);
+    expect(pubInvite).not.toBeNull();
+    expect(pubInvite?.group.displayName).toBe('Bapak H. Sudirman & Ibu');
+
+    // 6. Uji Kode Pairing TV 6-Digit Sebelum Scan
+    const pairingCode = getEventTvPairingCode(evCreated.id);
+    expect(pairingCode.length).toBe(6);
+    const tvBeforeScan = getDisplayScreenState(pairingCode);
+    expect(tvBeforeScan.event.id).toBe(evCreated.id);
+    expect(tvBeforeScan.latestPublicWelcome).toBeNull();
+
+    // 7. Scan QR Tamu di Meja Registrasi (+2 orang hadir)
+    const scanRes = recordEventCheckinOrCorrection({
+      userId: 'user-wo-a',
+      eventId: evCreated.id,
+      groupIdOrQrToken: guestAdded.group.qrTokenPreview,
+      deltaAttendees: 2,
+      method: 'qr',
+      idempotencyKey: 'e2e-checkin-key-001',
+    });
+    expect(scanRes.ok).toBe(true);
+
+    // 8. Layar TV dengan Kode Pairing 6-Digit langsung menampilkan nama tamu secara otomatis!
+    const tvAfterScan = getDisplayScreenState(pairingCode);
+    expect(tvAfterScan.latestPublicWelcome?.displayName).toBe('Bapak H. Sudirman & Ibu');
+    expect(tvAfterScan.totalCheckedInPersons).toBe(2);
   });
 });
 

@@ -132,6 +132,108 @@ export default async function EventDisplayConfigPage({
           </div>
         </section>
 
+        {/* DIAGRAM ILUSTRASI VISUAL CARA PASANG KE TV BESAR / LED PANGGUNG */}
+        <section className="rounded-card border-2 border-gold/40 bg-surface p-6 sm:p-8 shadow-sm space-y-6">
+          <div>
+            <Badge variant="gold">PANDUAN BERGAMBAR KONEKSI FISIK DI GEDUNG</Badge>
+            <h2 className="mt-2 font-serif text-2xl font-bold text-navy">
+              Skema Ilustrasi: Bagaimana HP Scanner di Pintu Depan Terhubung ke TV Besar / LED Panggung?
+            </h2>
+            <p className="mt-1 text-xs sm:text-sm text-ink/70">
+              Anda <strong>tidak perlu menarik kabel</strong> dari meja penerima tamu di pintu depan
+              ke layar TV/LED di panggung! Keduanya terhubung lewat internet (Wi-Fi / Hotspot 4G):
+            </p>
+          </div>
+
+          {/* Diagram Skema Visual 4 Kotak Berurutan */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch">
+            <div className="rounded-card border-2 border-navy bg-ivory p-4 flex flex-col justify-between text-center">
+              <div>
+                <div className="mx-auto h-14 w-14 rounded-full bg-navy text-gold-light flex items-center justify-center text-2xl shadow">
+                  📱
+                </div>
+                <span className="mt-2 inline-block rounded bg-gold/20 px-2 py-0.5 text-[10px] font-bold uppercase text-navy">
+                  POS 1: PINTU DEPAN LOBBY
+                </span>
+                <h3 className="mt-1.5 font-serif text-base font-bold text-navy">
+                  1. HP / Tablet Petugas Scanner
+                </h3>
+                <p className="mt-1 text-xs text-ink/75 leading-relaxed">
+                  Petugas berdiri di meja registrasi depan memegang HP/Tablet (terhubung internet
+                  4G/Wi-Fi) dan men-scan QR Code tamu.
+                </p>
+              </div>
+              <div className="mt-3 pt-2 border-t border-border text-[11px] font-bold text-navy">
+                Sinyal Dikirim via Internet &rarr;
+              </div>
+            </div>
+
+            <div className="rounded-card border-2 border-gold bg-navy text-ivory p-4 flex flex-col justify-between text-center">
+              <div>
+                <div className="mx-auto h-14 w-14 rounded-full bg-gold/20 border border-gold text-gold-light flex items-center justify-center text-2xl shadow">
+                  ☁️
+                </div>
+                <span className="mt-2 inline-block rounded bg-gold/20 px-2 py-0.5 text-[10px] font-bold uppercase text-gold-light">
+                  JARINGAN CLOUD OTOMATIS
+                </span>
+                <h3 className="mt-1.5 font-serif text-base font-bold text-white">
+                  2. Server Cloud SANSTECH
+                </h3>
+                <p className="mt-1 text-xs text-ivory/80 leading-relaxed">
+                  Server memverifikasi kuota tamu dan izin tampil TV (<code>TampilTV = Ya</code>),
+                  lalu meneruskan nama tamu ke kode pairing <strong>{tvPairingCode}</strong>.
+                </p>
+              </div>
+              <div className="mt-3 pt-2 border-t border-gold/30 text-[11px] font-bold text-gold-light">
+                Diterima dalam 2,5 Detik &rarr;
+              </div>
+            </div>
+
+            <div className="rounded-card border-2 border-navy bg-ivory p-4 flex flex-col justify-between text-center">
+              <div>
+                <div className="mx-auto h-14 w-14 rounded-full bg-navy text-gold-light flex items-center justify-center text-2xl shadow">
+                  💻
+                </div>
+                <span className="mt-2 inline-block rounded bg-gold/20 px-2 py-0.5 text-[10px] font-bold uppercase text-navy">
+                  POS 2: MEJA OPERATOR PANGGUNG
+                </span>
+                <h3 className="mt-1.5 font-serif text-base font-bold text-navy">
+                  3. Laptop Operator + Kabel HDMI
+                </h3>
+                <p className="mt-1 text-xs text-ink/75 leading-relaxed">
+                  Di dekat TV/panggung, sediakan 1 Laptop yang membuka menu <code>/tv</code> (kode{' '}
+                  <strong>{tvPairingCode}</strong>), lalu colok <strong>Kabel HDMI</strong> dari
+                  Laptop ke TV / Processor LED.
+                </p>
+              </div>
+              <div className="mt-3 pt-2 border-t border-border text-[11px] font-bold text-navy">
+                Kabel HDMI Menampilkan Layar &rarr;
+              </div>
+            </div>
+
+            <div className="rounded-card border-2 border-gold bg-gradient-to-b from-navy-dark to-navy text-ivory p-4 flex flex-col justify-between text-center">
+              <div>
+                <div className="mx-auto h-14 w-14 rounded-full bg-gold text-navy-dark flex items-center justify-center text-2xl shadow font-bold">
+                  📺
+                </div>
+                <span className="mt-2 inline-block rounded bg-gold/20 px-2 py-0.5 text-[10px] font-bold uppercase text-gold-light">
+                  LAYAR BESAR BALLROOM
+                </span>
+                <h3 className="mt-1.5 font-serif text-base font-bold text-gold-light">
+                  4. Smart TV / Videotron LED Panggung
+                </h3>
+                <p className="mt-1 text-xs text-ivory/85 leading-relaxed">
+                  Tekan <code>F11</code> (Full Screen) di Laptop Operator. Layar TV/LED otomatis
+                  berkedip emas dan menyapa nama tamu beserta nomor mejanya!
+                </p>
+              </div>
+              <div className="mt-3 pt-2 border-t border-gold/30 text-[11px] font-bold text-success">
+                ✓ Tampil Otomatis Tanpa Refresh!
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Simulasi Pratinjau 16:9 */}
         <section className="rounded-card border-4 border-gold/60 bg-gradient-to-b from-navy-dark via-navy to-navy-dark text-ivory p-10 sm:p-16 text-center shadow-2xl">
           <p className="text-xs uppercase tracking-[0.35em] text-gold-light">
