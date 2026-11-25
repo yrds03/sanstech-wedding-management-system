@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { BRAND_NAME } from '@/lib/types';
+import {safeRedirectPath} from '@/lib/config';
 
-export default async function RegisterPage({searchParams}:{searchParams:Promise<{error?:string}>}) {
+export default async function RegisterPage({searchParams}:{searchParams:Promise<{error?:string;next?:string}>}) {
   const query = await searchParams;
+  const next=safeRedirectPath(query.next,'/onboarding');
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-ivory px-4 py-12">
       <div className="w-full max-w-md rounded-card border border-border bg-surface p-6 sm:p-8 shadow-sm">
@@ -21,6 +23,7 @@ export default async function RegisterPage({searchParams}:{searchParams:Promise<
 
         {query.error && <p role="alert" className="mt-4 text-sm text-danger">{query.error}</p>}
         <form action="/api/auth/register" method="POST" className="mt-6 space-y-4">
+          <input type="hidden" name="redirectTo" value={next}/>
 
           <div>
             <label htmlFor="displayName" className="block text-xs font-semibold text-navy mb-1.5">

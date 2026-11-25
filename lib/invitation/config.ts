@@ -130,18 +130,15 @@ export function sanitizeMapsUrl(value: unknown): string {
   try {
     const url = new URL(raw);
     if (url.protocol !== 'https:') return '';
+    if(url.username || url.password || (url.port && url.port!=='443'))return '';
+    if([...url.searchParams.keys()].some(key=>/^(url|continue|redirect|redirect_uri|next)$/i.test(key)))return '';
     const host = url.hostname.toLowerCase();
     const allowed =
       host === 'maps.app.goo.gl' ||
-      host === 'goo.gl' ||
       host === 'maps.google.com' ||
-      host === 'www.google.com' ||
-      host === 'google.com' ||
-      host === 'g.co' ||
-      host.endsWith('.google.com') ||
-      host === 'waze.com' ||
-      host === 'www.waze.com' ||
-      host === 'ul.waze.com';
+      (host === 'goo.gl' && /^\/maps\//.test(url.pathname)) ||
+      ((host === 'www.google.com' || host === 'google.com') && /^\/maps(?:\/|$)/.test(url.pathname)) ||
+      ((host === 'waze.com' || host === 'www.waze.com' || host === 'ul.waze.com') && /^\/(ul|live-map)(?:\/|$)/.test(url.pathname));
     return allowed ? url.toString() : '';
   } catch {
     return '';

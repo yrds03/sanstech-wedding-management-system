@@ -19,7 +19,7 @@ Mode simulasi selalu ditolak pada build produksi/Vercel. Tanpa konfigurasi datab
 ## Menyiapkan Supabase
 
 1. Pilih proyek Supabase yang benar, ambil cadangan, dan tinjau migration sebelum penerapan.
-2. Terapkan seluruh file `supabase/migrations/` sesuai urutan nama. Migration baru adalah `20261125000002_production_repository.sql`. Jangan menjalankan ulang migration awal pada database yang sudah memilikinya.
+2. Terapkan seluruh file `supabase/migrations/` sesuai urutan nama. Repository produksi ditambahkan pada `20261125000002_production_repository.sql`; penguncian lintas operasi dan perlindungan tambahan ada pada `20261125000003_transaction_and_privacy_guards.sql`. Jangan menjalankan ulang migration awal pada database yang sudah memilikinya.
 3. Atur `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY` pada environment lokal/Vercel. Runtime aplikasi tidak membutuhkan service-role key.
 4. Pada Supabase Auth, atur Site URL dan Redirect URLs untuk `https://DOMAIN/auth/callback`, termasuk hostname preview yang memang digunakan. Aktifkan konfirmasi email. Konfigurasikan SMTP untuk pengiriman email produksi dan uji email verifikasi serta pemulihan dari kotak masuk sebenarnya.
 5. Daftar melalui aplikasi. Profil dibuat oleh trigger database. Akun baru selalu non-admin. Penetapan administrator dilakukan oleh pemilik database melalui konsol SQL terkontrol untuk **UUID akun yang sudah diverifikasi**, bukan dari browser.
@@ -64,10 +64,11 @@ npm test
 npm run build
 npx playwright install chromium
 npm run test:e2e
+npm run test:concurrency
 ```
 
-Tes integrasi menjalankan seluruh migration pada PostgreSQL sementara (PGlite) dengan schema Auth terisolasi. Ini menguji kontrak SQL, hak akses, token, impor, dan ledger tanpa menyentuh produksi. Tes Chromium menjalankan alur UI dengan **simulasi lokal**. Kedua jenis tes tidak menggantikan uji Supabase Auth/SMTP, RLS pada proyek sebenarnya, balapan transaksi dari beberapa koneksi, kamera fisik, TV, dan pilot acara nyata.
+Tes integrasi menjalankan seluruh migration pada PostgreSQL sementara (PGlite) dengan schema Auth terisolasi. `test:concurrency` menjalankan PostgreSQL 17 sebenarnya di loopback dengan beberapa koneksi untuk menguji scan, idempotensi, perubahan kapasitas/RSVP, kuota scanner dan onboarding serentak. Data pengujian berada di `test-results/` yang diabaikan Git. Tes Chromium menjalankan alur UI dengan **simulasi lokal**. Koneksi Auth/SMTP cloud serta kamera dan TV fisik dicatat sesuai layanan/perangkat yang tersedia.
 
-Lihat `docs/DECISIONS.md` dan `docs/VERIFICATION.md` untuk keputusan serta bukti validasi terakhir. Jangan menyatakan aplikasi bebas bug berdasarkan build atau tes otomatis saja.
+Lihat `docs/DECISIONS.md` dan `docs/VERIFICATION.md` untuk keputusan, hasil validasi, serta status koneksi layanan terakhir.
 
 Template GitHub Actions tersedia di `docs/workflows/ci.yml`. Pindahkan ke `.github/workflows/ci.yml` menggunakan akun/token yang memiliki izin `workflow` untuk mengaktifkannya. Kredensial sesi audit ini hanya memiliki izin `repo`, `read:org`, dan `gist`; pemeriksaan lokal tetap dijalankan secara langsung.

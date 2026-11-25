@@ -7,6 +7,7 @@ export default defineConfig({
     globals: true,
     maxWorkers: 2,
     include: ['tests/**/*.test.ts'],
+    exclude:['tests/concurrency/**'],
   },
   resolve: {
     alias: {

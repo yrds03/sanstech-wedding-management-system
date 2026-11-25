@@ -2,6 +2,16 @@
 
 Dokumen ini mencatat keputusan arsitektur, produk, dan penyesuaian implementasi terhadap spesifikasi awal (`01_PRD_WEDDINGHUB.md`, `02_UX_FLOW_WIREFRAMES.md`, `03_BACKLOG_TEST_CASES.md`).
 
+## DEC-007: Penguncian lintas operasi dan pembatasan respons petugas
+
+- **Tanggal:** 25 November 2026.
+- Migration `20261125000003_transaction_and_privacy_guards.sql` menambahkan lapisan validasi di depan dispatcher lama dan mencabut akses langsung ke dispatcher internal. Urutan kunci dibuat konsisten: acara lalu grup undangan, termasuk RSVP, perubahan kapasitas, rotasi token, pencabutan anggota dan check-in.
+- PostgreSQL 17 dengan koneksi independen dipakai untuk menguji balapan sebenarnya. Perubahan kapasitas dan RSVP tidak dapat melewati satu sama lain; idempotensi dan kuota tetap berlaku pada permintaan bersamaan.
+- Fungsi dengan hak khusus menggunakan `search_path=public,pg_temp` dan hak membuat objek di schema publik dicabut dari role API. Tes memastikan tabel sementara palsu tidak dapat mengganti sumber otorisasi.
+- Viewer hanya menerima ringkasan yang diperlukan, respons petugas scanner tidak memuat nomor kontak/catatan privat, dan Usher tidak menerima token QR. Sambutan kedatangan dibatalkan saat koreksi mengembalikan kehadiran menjadi nol.
+- Endpoint sensitif memakai `no-store`, `noindex` dan kebijakan referer `same-origin` agar token tidak ikut dikirim ke situs luar tanpa menghilangkan Origin pada formulir internal. Tautan peta dibatasi ke rute peta, bukan sekadar hostname yang juga dapat menyediakan pengalih URL. Tujuan undangan dipertahankan saat anggota baru membuka pendaftaran.
+- Pengguna memastikan hosting Vercel sudah ada dan proyek Supabase belum dibuat. Penghalang konfigurasi diperlakukan sebagai langkah koneksi akun yang konkret; pembuatan proyek tidak dinyatakan terjadi sebelum ada hasil API layanan.
+
 ## DEC-004: Penyimpanan dan autentikasi produksi yang sebenarnya
 
 - **Tanggal:** 25 November 2026.

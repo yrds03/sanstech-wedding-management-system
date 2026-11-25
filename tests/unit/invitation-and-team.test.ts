@@ -71,6 +71,11 @@ describe('invitation design plan gating', () => {
     expect(sanitizeMapsUrl('javascript:alert(1)')).toBe('');
     expect(sanitizeMapsUrl('http://maps.google.com/x')).toBe('');
     expect(sanitizeMapsUrl('https://evil.example.com/x')).toBe('');
+    expect(sanitizeMapsUrl('https://www.google.com/url?q=https://evil.example')).toBe('');
+    expect(sanitizeMapsUrl('https://accounts.google.com/')).toBe('');
+    expect(sanitizeMapsUrl('https://maps.google.com/?redirect=https://evil.example')).toBe('');
+    expect(sanitizeMapsUrl('https://www.google.com/maps?q=Jakarta')).toContain('/maps');
+    expect(sanitizeMapsUrl('https://www.waze.com/ul?ll=-6.2,106.8')).toContain('waze.com/ul');
   });
 
   it('server enforces plan when saving, and signed design link rejects tampering', () => {

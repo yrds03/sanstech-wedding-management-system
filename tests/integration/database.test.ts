@@ -160,4 +160,41 @@ describe('production PostgreSQL repository',()=>{
   const overflow=await rpc('addInvitationGroupToEvent',{userId:owner,eventId:event.id,displayName:'Tamu Berlebih',type:'individual',capacity:1,guestCategory:'regular',allowedPublicDisplay:false});
   expect((overflow as unknown as {code:string}).code).toBe('QUOTA_EXCEEDED');expect((await rpc('getEventIfAuthorized',owner,event.id)).metrics.invitationGroupsCount).toBe(50);
  });
+ it('returns structured validation failures for invalid public input and null actors',async()=>{
+  await actor('');expect((await rpc('submitPublicRsvpByToken',{rawToken:'bad',rsvpStatus:'attending',attendeeCount:1})).errorCode).toBe('VALIDATION_ERROR');
+  const response=await db.query<{value:RpcResult}>("SELECT wms_repository('pairDisplay','null'::jsonb) AS value");expect(response.rows[0]!.value.errorCode).toBe('VALIDATION_ERROR');
+  await actor(owner);await expect(rpc('getEventIfAuthorized',null,eventId)).rejects.toThrow();
+  await expect(rpc('getEventIfAuthorized',{userId:null,eventId})).rejects.toThrow();
+  expect(await rpc('getEventIfAuthorized',owner,'invalid-id')).toBeNull();
+ });
+ it('does not expose private corrections or guest notes to viewer and receptionist roles',async()=>{
+  const viewer=await rpc('createEventMemberInvite',{actorUserId:owner,eventId,recipientEmail:'staff@example.com',eventRoleGrant:'viewer'});
+  await actor(staff);expect((await rpc('acceptMemberInviteByToken',{userId:staff,rawToken:viewer.rawToken})).ok).toBe(true);
+  expect(await rpc('listCheckinLedgerForEvent',staff,eventId)).toEqual([]);
+  await actor(owner);const scanner=await rpc('createEventMemberInvite',{actorUserId:owner,eventId,recipientEmail:'staff@example.com',eventRoleGrant:'receptionist'});
+  await actor(staff);await rpc('acceptMemberInviteByToken',{userId:staff,rawToken:scanner.rawToken});
+  const result=await rpc('recordEventCheckinOrCorrection',{userId:staff,eventId,groupIdOrQrToken:groupId,deltaAttendees:1,method:'manual',deviceKey:crypto.randomUUID(),idempotencyKey:crypto.randomUUID()});
+  expect(result.ok).toBe(true);expect(result.group.notesPrivateOptional).toBeUndefined();expect(result.group.phoneOptional).toBeUndefined();expect(result.group.publicTokenPreview).toBeUndefined();
+  const ledger=await rpc('listCheckinLedgerForEvent',staff,eventId) as unknown as Array<{reasonNullable:string|null}>;expect(ledger.every(entry=>entry.reasonNullable===null)).toBe(true);await actor(owner);
+ });
+ it('expires pending welcomes when a correction removes the last attendee',async()=>{
+  const created=await rpc('addInvitationGroupToEvent',{userId:owner,eventId,displayName:'VIP Dikoreksi',type:'individual',capacity:1,guestCategory:'vip',allowedPublicDisplay:true});
+  await rpc('recordEventCheckinOrCorrection',{userId:owner,eventId,groupIdOrQrToken:created.group.qrTokenPreview,deltaAttendees:1,method:'qr',deviceKey:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',idempotencyKey:crypto.randomUUID()});
+  await rpc('recordEventCheckinOrCorrection',{userId:owner,eventId,groupIdOrQrToken:created.group.id,deltaAttendees:-1,method:'correction',reasonNullable:'Membatalkan salah pencatatan',idempotencyKey:crypto.randomUUID()});
+  const code=await rpc('getEventTvPairingCode',eventId);await actor('');const paired=await rpc('pairDisplay',{code});await rpc('getDisplayScreenState',(paired as unknown as {token:string}).token);
+  const rows=await db.query<{state:string}>('SELECT state FROM display_events WHERE invitation_group_id=$1',[created.group.id]);expect(rows.rows[0]!.state).toBe('expired');await actor(owner);
+ });
+ it('allows actual map routes and strips redirect pages even on a trusted hostname',async()=>{
+  const input={userId:owner,eventId,rawConfig:{themeStyle:'royal_navy_gold',mapsUrl:'https://www.google.com/url?q=https://evil.example'}};
+  const saved=await rpc('updateEventInvitationConfig',input) as unknown as {invitationConfig:{mapsUrl:string}};expect(saved.invitationConfig.mapsUrl).toBe('');
+  const valid=await rpc('updateEventInvitationConfig',{...input,rawConfig:{...input.rawConfig,mapsUrl:'https://www.waze.com/ul?ll=-6.2,106.8'}}) as unknown as {invitationConfig:{mapsUrl:string}};expect(valid.invitationConfig.mapsUrl).toContain('waze.com/ul');
+ });
+ it('does not let a temporary authorization table shadow the real profiles table',async()=>{
+  await actor(other);await db.exec('SET ROLE authenticated');
+  try{
+   await db.exec('CREATE TEMP TABLE profiles(user_id uuid,status text,is_platform_admin boolean)');
+   await db.query("INSERT INTO pg_temp.profiles VALUES($1,'active',true)",[other]);
+   expect(await rpc('getEventIfAuthorized',other,eventId)).toBeNull();
+  }finally{await db.exec('DROP TABLE pg_temp.profiles;RESET ROLE');await actor(owner);}
+ });
 });

@@ -94,7 +94,7 @@ export default async function LoginPage({
         <div className="mt-6 pt-5 border-t border-border flex items-center justify-between text-xs text-ink/70">
           <span>
             Belum punya akun?{' '}
-            <Link href="/auth/register" className="font-semibold text-navy hover:underline">
+            <Link href={`/auth/register?next=${encodeURIComponent(nextUrl)}`} className="font-semibold text-navy hover:underline">
               Daftar baru
             </Link>
           </span>

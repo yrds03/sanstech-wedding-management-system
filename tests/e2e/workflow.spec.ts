@@ -58,3 +58,8 @@ test('cross-site mutations and forged sessions are rejected',async({request})=>{
  const response=await request.post('/api/events',{headers:{Origin:'https://evil.example'},data:{title:'forged'}});expect(response.status()).toBe(403);
  const forged=await request.get('/api/workspaces',{headers:{Cookie:'sanstech_dev_session_uid=user-platform-admin'}});expect(forged.status()).toBe(401);
 });
+test('preserves the invitation destination when a new member opens registration',async({page})=>{
+ await page.goto('/auth/login?next=%2Finvite%2Ftest-invitation-token');
+ await page.getByRole('link',{name:'Daftar baru'}).click();
+ await expect(page.locator('form[action="/api/auth/register"] input[name="redirectTo"]')).toHaveValue('/invite/test-invitation-token');
+});
