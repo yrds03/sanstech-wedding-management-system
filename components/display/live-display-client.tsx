@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 interface DisplayStatePayload {
   eventTitle: string;
@@ -27,15 +27,23 @@ export function LiveDisplayClient({
   const [state, setState] = useState<DisplayStatePayload>(initialState);
   const [connectionStatus, setConnectionStatus] = useState<'LIVE' | 'RECONNECTING'>('LIVE');
   const [lastTriggerFlash, setLastTriggerFlash] = useState(false);
+  const lastWelcomeId = useRef(initialState.welcomeGuest?.id ?? null);
+  const welcomeId=state.welcomeGuest?.id;
 
   useEffect(() => {
     let active = true;
+    let timer:ReturnType<typeof setTimeout>;
+    let flashTimer:ReturnType<typeof setTimeout>;
+    let pending:AbortController|null=null;
 
     async function pollDisplayState() {
       try {
+        const controller=new AbortController();pending=controller;
+        const timeout=setTimeout(()=>controller.abort(),8000);
         const res = await fetch(`/api/display/${encodeURIComponent(sessionId)}/state`, {
           cache: 'no-store',
-        });
+          signal: controller.signal,
+        }).finally(()=>clearTimeout(timeout));
         if (!res.ok) {
           if (active) setConnectionStatus('RECONNECTING');
           return;
@@ -44,27 +52,29 @@ export function LiveDisplayClient({
         if (!active) return;
 
         setConnectionStatus('LIVE');
-        setState((prev) => {
-          if (
-            nextData.welcomeGuest?.id &&
-            nextData.welcomeGuest.id !== prev.welcomeGuest?.id
-          ) {
-            setLastTriggerFlash(true);
-            setTimeout(() => setLastTriggerFlash(false), 1200);
-          }
-          return nextData;
-        });
+        if(nextData.welcomeGuest?.id && nextData.welcomeGuest.id!==lastWelcomeId.current){
+          lastWelcomeId.current=nextData.welcomeGuest.id;setLastTriggerFlash(true);
+          clearTimeout(flashTimer);flashTimer=setTimeout(()=>{if(active)setLastTriggerFlash(false);},1200);
+        }
+        setState(nextData);
       } catch {
         if (active) setConnectionStatus('RECONNECTING');
+      } finally {
+        if(active)timer=setTimeout(pollDisplayState,2500);
       }
     }
 
-    const timer = setInterval(pollDisplayState, 2500);
+    timer=setTimeout(pollDisplayState,2500);
     return () => {
       active = false;
-      clearInterval(timer);
+      clearTimeout(timer);clearTimeout(flashTimer);pending?.abort();
     };
   }, [sessionId]);
+  useEffect(()=>{
+    if(!welcomeId)return;
+    const timer=setTimeout(()=>setState(previous=>({...previous,welcomeGuest:null})),8000);
+    return ()=>clearTimeout(timer);
+  },[welcomeId]);
 
   return (
     <div

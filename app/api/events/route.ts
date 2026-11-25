@@ -1,3 +1,4 @@
+import { routeError, readFormBody, readJsonBody } from '@/lib/http';
 import { NextResponse } from 'next/server';
 import { getCurrentUserServer } from '@/lib/auth/session';
 import { createAppError, getHttpStatusForError } from '@/lib/errors';
@@ -6,6 +7,8 @@ import { createEventInWorkspace, updateEventDetails } from '@/lib/db/repository'
 import { PlanCode } from '@/lib/types';
 
 export async function POST(request: Request) {
+  try {
+
   const user = await getCurrentUserServer();
   if (!user) {
     return NextResponse.json(createAppError('UNAUTHORIZED'), {
@@ -17,20 +20,20 @@ export async function POST(request: Request) {
   let rawPayload: Record<string, unknown> = {};
   let mode = 'create';
   let eventIdToUpdate = '';
-  let planCode: PlanCode = 'pro_plus';
+  let planCode: PlanCode = 'free';
 
   if (contentType.includes('application/json')) {
-    rawPayload = (await request.json()) as Record<string, unknown>;
+    rawPayload = (await readJsonBody(request)) as Record<string, unknown>;
     mode = String(rawPayload.mode ?? 'create');
     eventIdToUpdate = String(rawPayload.eventId ?? '');
     if (rawPayload.planCode === 'free' || rawPayload.planCode === 'pro' || rawPayload.planCode === 'pro_plus') {
       planCode = rawPayload.planCode;
     }
   } else {
-    const formData = await request.formData();
+    const formData = await readFormBody(request);
     mode = String(formData.get('mode') ?? 'create');
     eventIdToUpdate = String(formData.get('eventId') ?? '');
-    const rawPlan = String(formData.get('planCode') ?? 'pro_plus');
+    const rawPlan = String(formData.get('planCode') ?? 'free');
     if (rawPlan === 'free' || rawPlan === 'pro' || rawPlan === 'pro_plus') {
       planCode = rawPlan;
     }
@@ -66,11 +69,11 @@ export async function POST(request: Request) {
   }
 
   if (mode === 'update' && eventIdToUpdate) {
-    const updated = updateEventDetails({
+    const updated = (await updateEventDetails({
       userId: user.userId,
       eventId: eventIdToUpdate,
       ...parsed.data,
-    });
+    }));
 
     if ('error' in updated) {
       if (!contentType.includes('application/json')) {
@@ -96,11 +99,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ event: updated });
   }
 
-  const created = createEventInWorkspace({
+  const created = (await createEventInWorkspace({
     userId: user.userId,
     planCode,
     ...parsed.data,
-  });
+  }));
 
   if ('error' in created) {
     return NextResponse.json(createAppError('FORBIDDEN', created.error), {
@@ -113,5 +116,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ event: created }, { status: 201 });
+
+  } catch (error) { return routeError(error); }
 }
 

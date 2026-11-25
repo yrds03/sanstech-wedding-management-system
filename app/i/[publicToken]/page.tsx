@@ -9,18 +9,20 @@ import {
   getInvitationFeatureAccess,
   sanitizeInvitationConfig,
 } from '@/lib/invitation/config';
-import { decodeInvitationConfig } from '@/lib/invitation/signing';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PublicInvitationPage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { publicToken: string };
-  searchParams?: { saved?: string; error?: string; c?: string };
+  params: Promise<{ publicToken: string }>;
+  searchParams?: Promise<{ saved?: string; error?: string; c?: string }>;
 }) {
-  const data = getPublicInvitationByToken(params.publicToken);
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
+
+  const data = (await getPublicInvitationByToken(params.publicToken));
 
   if (!data) {
     notFound();
@@ -31,14 +33,11 @@ export default async function PublicInvitationPage({
   const qrPngDataUrl = await generateQrCodeDataUrl(group.qrTokenPreview);
 
   // Desain dari tautan bertanda tangan (dibuka di HP tamu) diutamakan; fallback ke desain tersimpan acara.
-  const portable = decodeInvitationConfig(searchParams?.c);
-  const plan = portable?.plan ?? event.planCode;
-  const config =
-    portable?.config ??
-    sanitizeInvitationConfig(event.invitationConfig ?? DEFAULT_INVITATION_CONFIG, event.planCode);
+  const plan = event.planCode;
+  const config = sanitizeInvitationConfig(event.invitationConfig ?? DEFAULT_INVITATION_CONFIG, event.planCode);
   const theme = INVITATION_THEMES[config.themeStyle];
   const access = getInvitationFeatureAccess(plan);
-  const signedDesign = portable ? (searchParams?.c ?? '') : '';
+  const signedDesign = '';
 
   const waveBrand = access.whiteLabel && config.whiteLabelBrandName ? config.whiteLabelBrandName : null;
 
@@ -138,7 +137,7 @@ export default async function PublicInvitationPage({
                 className="w-48 h-48 [&>svg]:w-full [&>svg]:h-full"
                 dangerouslySetInnerHTML={{ __html: qrSvg }}
               />
-              <span className="mt-2 font-mono text-xs font-bold tracking-wider">{group.qrTokenPreview}</span>
+              <span className="mt-2 max-w-full break-all font-mono text-xs font-bold tracking-wider">{group.qrTokenPreview}</span>
               <span className="mt-1 text-[10px] font-semibold uppercase tracking-widest bg-black/5 px-2.5 py-0.5 rounded">
                 Kuota Akses: {group.capacity} Orang
               </span>

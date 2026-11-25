@@ -1,3 +1,5 @@
+import { loadPlatformPricing } from '@/lib/plans/server';
+import { isLocalDemoEnabled } from '@/lib/config';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
@@ -16,28 +18,34 @@ import { evaluateEventPostLifecycle, getPlansCatalog } from '@/lib/plans';
 export const dynamic = 'force-dynamic';
 
 export default async function EventOverviewPage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { eventId: string };
-  searchParams?: { reset_notice?: string; error?: string };
+  params: Promise<{ eventId: string }>;
+  searchParams?: Promise<{ reset_notice?: string; error?: string }>;
 }) {
+  await loadPlatformPricing();
+
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
+
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}`);
-  const event = getEventIfAuthorized(user.userId, params.eventId);
+  const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
   if (!event) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
   const catalog = getPlansCatalog();
   const plan = catalog[event.planCode];
   const lifecycle = evaluateEventPostLifecycle({
     eventDate: event.eventDate,
     planCode: event.planCode,
+    timezone:event.timezone,
   });
-  const auditLogs = listAuditLogsForEvent(user.userId, event.id);
+  const auditLogs = (await listAuditLogsForEvent(user.userId, event.id));
 
   const canResetTesting =
     event.myEffectiveRole === 'workspace_owner' ||
@@ -177,7 +185,7 @@ export default async function EventOverviewPage({
         </section>
 
         {/* Panel Khusus Reset / Hapus Data Testing (Menjawab Pertanyaan 5 User) */}
-        {canResetTesting && (
+        {canResetTesting && isLocalDemoEnabled() && (
           <section className="rounded-card border-2 border-gold/40 bg-surface p-6 shadow-sm">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
@@ -193,7 +201,7 @@ export default async function EventOverviewPage({
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5">
-                <form action={`/api/events/${event.id}/testing-reset`} method="POST">
+                {isLocalDemoEnabled() && (<form action={`/api/events/${event.id}/testing-reset`} method="POST">
                   <input type="hidden" name="mode" value="reset_checkins_only" />
                   <input type="hidden" name="returnTo" value={`/app/e/${event.id}`} />
                   <button
@@ -202,9 +210,9 @@ export default async function EventOverviewPage({
                   >
                     🔄 Reset Angka Check-in ke 0 (Tamu Tetap Ada)
                   </button>
-                </form>
+                </form>)}
 
-                <form action={`/api/events/${event.id}/testing-reset`} method="POST">
+                {isLocalDemoEnabled() && (<form action={`/api/events/${event.id}/testing-reset`} method="POST">
                   <input type="hidden" name="mode" value="delete_all_test_guests" />
                   <input type="hidden" name="returnTo" value={`/app/e/${event.id}`} />
                   <button
@@ -213,9 +221,9 @@ export default async function EventOverviewPage({
                   >
                     🗑️ Hapus Semua Tamu Testing (Bersih 0 Tamu)
                   </button>
-                </form>
+                </form>)}
 
-                <form action={`/api/events/${event.id}/testing-reset`} method="POST">
+                {isLocalDemoEnabled() && (<form action={`/api/events/${event.id}/testing-reset`} method="POST">
                   <input type="hidden" name="mode" value="restore_demo_samples" />
                   <input type="hidden" name="returnTo" value={`/app/e/${event.id}`} />
                   <button
@@ -224,7 +232,7 @@ export default async function EventOverviewPage({
                   >
                     + Muat Ulang 3 Tamu Contoh
                   </button>
-                </form>
+                </form>)}
               </div>
             </div>
           </section>

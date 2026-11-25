@@ -1,3 +1,4 @@
+import { hasPermission } from '@/lib/permissions';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
@@ -15,22 +16,27 @@ import { Badge } from '@/components/ui/primitives';
 export const dynamic = 'force-dynamic';
 
 export default async function EventDisplayConfigPage({
-  params,
+  params: paramsPromise,
 }: {
-  params: { eventId: string };
+  params: Promise<{ eventId: string }>;
 }) {
+  const params = await paramsPromise;
+
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}/display`);
-  const event = getEventIfAuthorized(user.userId, params.eventId);
+  const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
   if (!event) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
-  const groups = listInvitationGroupsForEvent(user.userId, event.id) ?? [];
-  const ledger = listCheckinLedgerForEvent(user.userId, event.id) ?? [];
-  const tvPairingCode = getEventTvPairingCode(event.id);
+  if (!hasPermission(event.myEffectiveRole, 'event:configure_display')) notFound();
+
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
+  const groups = (await listInvitationGroupsForEvent(user.userId, event.id)) ?? [];
+  const ledger = (await listCheckinLedgerForEvent(user.userId, event.id)) ?? [];
+  const tvPairingCode = (await getEventTvPairingCode(event.id));
+  if (!tvPairingCode) return <AppShell user={user} effectiveRole={event.myEffectiveRole} eventId={event.id} eventTitle={event.title}><h1 className="text-2xl font-bold">Layar sambutan tersedia pada paket Pro dan Pro Plus</h1><Link href={`/app/e/${event.id}/plan`}>Lihat paket acara</Link></AppShell>;
 
   const latestPublicWelcome = ledger
     .filter((l) => l.deltaAttendees > 0)
@@ -108,7 +114,7 @@ export default async function EventDisplayConfigPage({
                   🔗 Buka Portal Pairing /tv
                 </Link>
                 <Link
-                  href={`/display/${tvPairingCode}`}
+                  href={`/tv?code=${tvPairingCode}`}
                   target="_blank"
                   className="min-h-[42px] inline-flex items-center rounded-button border border-border/40 bg-navy-dark px-4 py-2 text-xs font-semibold text-ivory hover:border-gold transition"
                 >
@@ -125,9 +131,9 @@ export default async function EventDisplayConfigPage({
                 {tvPairingCode}
               </p>
               <p className="mt-2 text-[11px] text-ivory/65">
-                Ketik kode 6 angka ini di menu <code>/tv</code> pada Smart TV atau Laptop HDMI
-                Operator Panggung
+                Kode berlaku 15 menit dan hanya dapat digunakan satu kali. Sesi layar berlaku 24 jam.
               </p>
+              <form action={`/api/events/${event.id}/display`} method="POST" className="mt-4"><button className="rounded border border-gold px-3 py-2 text-sm">Cabut seluruh sesi layar</button></form>
             </div>
           </div>
         </section>

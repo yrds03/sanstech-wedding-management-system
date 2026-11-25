@@ -196,9 +196,12 @@ export function getAddOnsCatalog(): AddOnDefinition[] {
   ];
 
   return rawList.map((item) => {
+    const comingSoon=['addon_extra_quota_250','addon_extend_retention_30d','addon_souvenir_counter_module'].includes(item.code);
     const priceIdr = p[item.code] ?? DEFAULT_ADDONS_PRICES[item.code] ?? 500000;
     return {
       ...item,
+      name:comingSoon?`Segera hadir · ${item.name}`:item.name,
+      deliverableNote:comingSoon?'Belum tersedia untuk aktivasi di aplikasi. Konfirmasikan kebutuhan Anda kepada pengelola sebelum memesan.':`${item.deliverableNote} Pemesanan dan konfirmasi layanan dilakukan manual dengan pengelola.`,
       priceIdr,
       priceFormatted: formatCurrencyIdr(priceIdr),
     };
@@ -254,7 +257,7 @@ export function getPlansCatalog(): Record<PlanCode, PlanDefinition> {
         welcomeDisplay: true,
         vipNotification: false,
         seatingLevel: 'Basic',
-        souvenirTracking: true,
+        souvenirTracking: false,
         exportLevel: 'Lengkap (CSV & Excel)',
         brandingLabel: 'Tanpa watermark',
       },
@@ -279,7 +282,7 @@ export function getPlansCatalog(): Record<PlanCode, PlanDefinition> {
         welcomeDisplay: true,
         vipNotification: true,
         seatingLevel: 'Advanced',
-        souvenirTracking: true,
+        souvenirTracking: false,
         exportLevel: 'Lengkap (CSV & Excel)',
         brandingLabel: 'White label WO',
       },
@@ -319,6 +322,7 @@ export function evaluateEventPostLifecycle(params: {
   eventDate: string;
   planCode: PlanCode;
   referenceDateStr?: string;
+  timezone?:string;
 }): {
   phase: 'upcoming_or_dday' | 'grace_period_readonly' | 'expired_locked';
   daysSinceEvent: number;
@@ -332,9 +336,9 @@ export function evaluateEventPostLifecycle(params: {
   const catalog = getPlansCatalog();
   const graceDaysAllowed = catalog[params.planCode].postEventGraceDays;
 
-  const eventUtc = Date.parse(`${params.eventDate}T23:59:59Z`);
-  const refDateStr = params.referenceDateStr ?? new Date().toISOString().slice(0, 10);
-  const nowUtc = Date.parse(`${refDateStr}T12:00:00Z`);
+  const eventUtc = Date.parse(`${params.eventDate}T00:00:00Z`);
+  const refDateStr = params.referenceDateStr ?? new Intl.DateTimeFormat('en-CA',{timeZone:params.timezone??'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const nowUtc = Date.parse(`${refDateStr}T00:00:00Z`);
 
   const diffDays = Math.floor((nowUtc - eventUtc) / (1000 * 60 * 60 * 24));
 

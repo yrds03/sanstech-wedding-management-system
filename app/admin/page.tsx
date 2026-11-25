@@ -1,3 +1,5 @@
+import { loadPlatformPricing } from '@/lib/plans/server';
+import { isLocalDemoEnabled } from '@/lib/config';
 import Link from 'next/link';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
 import { getAddOnsCatalog, getPlansCatalog, getPostEventRetentionConfig } from '@/lib/plans';
@@ -8,10 +10,14 @@ import { Badge } from '@/components/ui/primitives';
 export const dynamic = 'force-dynamic';
 
 export default async function PlatformAdminPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { notice?: string; error?: string };
+  searchParams?: Promise<{ notice?: string; error?: string }>;
 }) {
+  await loadPlatformPricing();
+
+  const searchParams = await searchParamsPromise;
+
   const user = await requireAuthenticatedUser('/admin');
 
   if (!user.isPlatformAdmin) {
@@ -53,7 +59,7 @@ export default async function PlatformAdminPage({
   const catalog = getPlansCatalog();
   const addOnsCatalog = getAddOnsCatalog();
   const retention = getPostEventRetentionConfig();
-  const events = getAllAuthorizedEventsForUser(user.userId);
+  const events = (await getAllAuthorizedEventsForUser(user.userId));
 
   return (
     <AppShell user={user} effectiveRole="platform_admin">
@@ -64,8 +70,8 @@ export default async function PlatformAdminPage({
             Pengaturan Harga Paket, Katalog Add-On, Masa Aktif Akun &amp; Lisensi Acara
           </h1>
           <p className="mt-1.5 text-sm text-ivory/80 max-w-3xl">
-            Panel ini hanya dapat diakses oleh akun <code>superadmin@sanstech.id</code> dan telah
-            disembunyikan sepenuhnya dari Landing Page publik serta akun Klien/Pengantin.
+            Panel ini hanya dapat digunakan oleh akun yang diberi hak administrator platform
+            oleh pemilik layanan. Akun WO dan pengantin tidak dapat mengubah harga atau mengaktifkan lisensi.
           </p>
         </div>
 
@@ -216,7 +222,7 @@ export default async function PlatformAdminPage({
               </p>
             </div>
 
-            <form action="/api/admin/pricing" method="POST">
+            {isLocalDemoEnabled() && (<form action="/api/admin/pricing" method="POST">
               <input type="hidden" name="action" value="reset_all_to_zero" />
               <button
                 type="submit"
@@ -224,7 +230,7 @@ export default async function PlatformAdminPage({
               >
                 🗑️ Kosongkan Semua Acara &amp; Mulai dari 0
               </button>
-            </form>
+            </form>)}
           </div>
 
           <div className="mt-5 space-y-3">

@@ -1,6 +1,10 @@
+import { routeError } from '@/lib/http';
 import { NextResponse } from 'next/server';
 import { GUEST_IMPORT_HEADERS } from '@/lib/spreadsheet/guest-import';
 import { buildXlsx } from '@/lib/spreadsheet/xlsx';
+import {getCurrentUserServer} from '@/lib/auth/session';
+import {getEventIfAuthorized} from '@/lib/db/repository';
+import {hasPermission} from '@/lib/permissions';
 
 const EXAMPLE_ROWS: Array<Array<string | number>> = [
   ['Contoh: Bapak H. Sudirman & Ibu', 2, 'vvip', 'Meja VVIP 01', 'ya', '081234567890', 'Jemput di lobby utama'],
@@ -12,7 +16,7 @@ const INSTRUCTION_ROWS: string[][] = [
   ['Petunjuk Pengisian Template Tamu SANSTECH'],
   ['1. Isi data tamu mulai dari baris 2 pada sheet "Data Tamu". Baris yang diawali "Contoh:" otomatis diabaikan saat impor.'],
   ['2. Nama Penerima: nama undangan, mis. "Bapak Budi & Ibu" atau "Keluarga Besar Hartono".'],
-  ['3. Kuota: jumlah orang yang boleh hadir (angka 1 - 50).'],
+  ['3. Kuota: jumlah orang yang boleh hadir (angka 1 - 20).'],
   ['4. Kategori: isi vvip, vip, atau regular.'],
   ['5. Meja: nama atau nomor meja (boleh dikosongkan).'],
   ['6. TampilTV: isi "ya" jika nama boleh muncul di layar sambutan, "tidak" jika tamu ingin privasi.'],
@@ -20,7 +24,13 @@ const INSTRUCTION_ROWS: string[][] = [
   ['8. Simpan file sebagai .xlsx (atau .csv), lalu unggah pada menu Tamu > Import Batch.'],
 ];
 
-export async function GET(request: Request) {
+export async function GET(request: Request,{params}:{params:Promise<{id:string}>}) {
+  try {
+  const user=await getCurrentUserServer();
+  if(!user)return NextResponse.json({error:{code:'UNAUTHORIZED',message:'Silakan masuk.'}},{status:401});
+  const {id}=await params;const event=await getEventIfAuthorized(user.userId,id);
+  if(!event || !hasPermission(event.myEffectiveRole,'event:manage_guests'))return NextResponse.json({error:{code:'FORBIDDEN',message:'Akses ditolak.'}},{status:403});
+
   const format = new URL(request.url).searchParams.get('format');
 
   if (format === 'csv') {
@@ -58,4 +68,6 @@ export async function GET(request: Request) {
       'Cache-Control': 'no-store',
     },
   });
+
+  } catch (error) { return routeError(error); }
 }

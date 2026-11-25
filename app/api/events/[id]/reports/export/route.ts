@@ -1,17 +1,24 @@
+import { routeError } from '@/lib/http';
 import { NextResponse } from 'next/server';
 import { getCurrentUserServer } from '@/lib/auth/session';
 import { createAppError, getHttpStatusForError } from '@/lib/errors';
 import {
   listCheckinLedgerForEvent,
   listInvitationGroupsForEvent,
+  getEventIfAuthorized,
 } from '@/lib/db/repository';
+import {hasPermission} from '@/lib/permissions';
 import { sanitizeSpreadsheetCell } from '@/lib/qr/tokens';
 import { buildXlsx } from '@/lib/spreadsheet/xlsx';
 
 export async function GET(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  try {
+
+  const params = await context.params;
+
   const user = await getCurrentUserServer();
   if (!user) {
     return NextResponse.json(createAppError('UNAUTHORIZED'), {
@@ -19,8 +26,17 @@ export async function GET(
     });
   }
 
-  const groups = listInvitationGroupsForEvent(user.userId, context.params.id);
-  const ledger = listCheckinLedgerForEvent(user.userId, context.params.id);
+  const event=await getEventIfAuthorized(user.userId,params.id);
+  if(!event || !hasPermission(event.myEffectiveRole,'event:view_reports'))return NextResponse.json(createAppError('FORBIDDEN'),{status:403});
+  const format=new URL(request.url).searchParams.get('format');
+  if(event.planCode==='free' || !hasPermission(event.myEffectiveRole,'event:import_export_guests')) {
+    if(format!=='csv')return NextResponse.json(createAppError('FORBIDDEN','Paket Free mendukung ringkasan CSV. Ekspor Excel tersedia pada paket Pro.'),{status:403});
+    const m=event.metrics;
+    const csv='Indikator;Jumlah\r\n'+[['Undangan',m.invitationGroupsCount],['Kuota orang',m.invitedCapacityTotal],['Rencana RSVP',m.rsvpAttendingCount],['Orang hadir',m.checkedInPersonsCount],['Grup hadir',m.checkedInGroupsCount],['VIP hadir',m.vipCheckedInCount]].map(r=>r.join(';')).join('\r\n');
+    return new NextResponse('\uFEFF'+csv,{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="Ringkasan-Kehadiran.csv"','Cache-Control':'no-store'}});
+  }
+  const groups = (await listInvitationGroupsForEvent(user.userId, params.id));
+  const ledger = (await listCheckinLedgerForEvent(user.userId, params.id));
 
   if (!groups || !ledger) {
     return NextResponse.json(createAppError('NOT_FOUND'), {
@@ -54,7 +70,7 @@ export async function GET(
     sanitizeSpreadsheetCell(g.tableLabelOptional ?? '-'),
   ]);
 
-  const baseName = `Laporan-Kehadiran-SANSTECH-${context.params.id.slice(0, 8)}`;
+  const baseName = `Laporan-Kehadiran-SANSTECH-${params.id.slice(0, 8)}`;
 
   if (new URL(request.url).searchParams.get('format') === 'csv') {
     // `sep=;` + titik koma: Excel Windows (locale Indonesia) langsung memecah kolom.
@@ -100,5 +116,7 @@ export async function GET(
       'Cache-Control': 'no-store',
     },
   });
+
+  } catch (error) { return routeError(error); }
 }
 

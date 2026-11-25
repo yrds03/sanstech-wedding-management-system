@@ -11,8 +11,9 @@ import type { InvitationConfig, PlanCode } from '@/lib/types';
  * mengubah isi undangan (mis. nomor rekening) pada domain SANSTECH.
  */
 function signingKey(): string {
-  return process.env.TOKEN_HASH_PEPPER ?? 'sanstech-weddinghub-default-dev-pepper';
+  return process.env.TOKEN_HASH_PEPPER ?? localKey;
 }
+const localKey = crypto.randomBytes(32).toString('hex');
 
 function sign(payloadB64: string): string {
   return crypto
@@ -31,7 +32,7 @@ export function encodeInvitationConfig(config: InvitationConfig, plan: PlanCode)
 export function decodeInvitationConfig(
   encoded: string | undefined | null
 ): PortableInvitationPayload | null {
-  if (!encoded) return null;
+  if (!encoded || encoded.length > 12000 || encoded.split('.').length !== 2) return null;
   const [b64, signature] = encoded.split('.');
   if (!b64 || !signature) return null;
 
@@ -54,8 +55,7 @@ export function buildInvitationPath(
   config: InvitationConfig | undefined,
   plan: PlanCode
 ): string {
-  const base = `/i/${publicToken}`;
-  if (!config) return base;
-  return `${base}?c=${encodeInvitationConfig(config, plan)}`;
+  void config; void plan;
+  return `/i/${encodeURIComponent(publicToken)}`;
 }
 

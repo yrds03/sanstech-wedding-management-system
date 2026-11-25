@@ -1,20 +1,8 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BRAND_NAME } from '@/lib/types';
 
-export default function TvPairingPortalPage() {
-  const [pairingCode, setPairingCode] = useState('');
-  const router = useRouter();
-
-  function handleConnect(e: React.FormEvent) {
-    e.preventDefault();
-    const cleaned = pairingCode.trim().replace(/[\s-]/g, '');
-    if (!cleaned) return;
-    router.push(`/display/${encodeURIComponent(cleaned)}`);
-  }
+export default async function TvPairingPortalPage({searchParams}:{searchParams:Promise<{code?:string;error?:string}>}) {
+  const query=await searchParams;
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-navy-dark via-navy to-navy-dark text-ivory px-4 py-12">
@@ -38,20 +26,26 @@ export default function TvPairingPortalPage() {
           </p>
         </div>
 
-        <form onSubmit={handleConnect} className="space-y-4">
+        {query.error && <p role="alert" className="text-sm text-red-300">{query.error}</p>}
+        <form action="/api/display/pair" method="POST" className="space-y-4">
           <div>
             <label
               htmlFor="pairingCode"
               className="block text-xs font-bold uppercase tracking-widest text-gold-light mb-2"
             >
-              Masukkan 6-Digit Kode Pairing TV (Atau ID Acara)
+              Masukkan kode layar 6 angka
             </label>
             <input
               id="pairingCode"
               type="text"
+              name="code"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              minLength={6}
+              maxLength={6}
+              autoComplete="one-time-code"
               required
-              value={pairingCode}
-              onChange={(e) => setPairingCode(e.target.value)}
+              defaultValue={query.code??''}
               placeholder="Contoh: 849201"
               className="w-full min-h-[56px] rounded-button border-2 border-gold bg-navy-dark px-4 py-3 text-center font-mono text-2xl font-bold tracking-[0.25em] text-gold-light placeholder:text-ivory/30 focus:outline-none"
             />

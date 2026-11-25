@@ -10,22 +10,27 @@ import { hasPermission } from '@/lib/permissions';
 import { Badge } from '@/components/ui/primitives';
 
 export default async function EventSettingsPage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { eventId: string };
-  searchParams?: { saved?: string; error?: string };
+  params: Promise<{ eventId: string }>;
+  searchParams?: Promise<{ saved?: string; error?: string }>;
 }) {
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
+
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}/settings`);
-  const event = getEventIfAuthorized(user.userId, params.eventId);
+  const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
   if (!event) {
     notFound();
   }
 
   const canEdit = hasPermission(event.myEffectiveRole, 'event:edit_details');
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
+  if (!hasPermission(event.myEffectiveRole, 'event:edit_details')) notFound();
+
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
 
   return (
     <AppShell

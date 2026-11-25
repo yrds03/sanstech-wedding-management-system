@@ -7,7 +7,7 @@ import {
   redeemMemberInviteToken,
   resetDevStoreForTests,
   updateEventInvitationConfig,
-} from '@/lib/db/repository';
+} from '@/lib/db/demo-repository';
 import {
   getInvitationFeatureAccess,
   sanitizeInvitationConfig,

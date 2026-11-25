@@ -5,11 +5,12 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    maxWorkers: 2,
     include: ['tests/**/*.test.ts'],
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '.'),
+      '@': path.resolve(import.meta.dirname, '.'),
     },
   },
 });

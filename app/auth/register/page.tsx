@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { BRAND_NAME } from '@/lib/types';
 
-export default function RegisterPage() {
+export default async function RegisterPage({searchParams}:{searchParams:Promise<{error?:string}>}) {
+  const query = await searchParams;
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-ivory px-4 py-12">
       <div className="w-full max-w-md rounded-card border border-border bg-surface p-6 sm:p-8 shadow-sm">
@@ -18,9 +19,8 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <form action="/api/auth/dev-session" method="POST" className="mt-6 space-y-4">
-          <input type="hidden" name="userId" value="user-wo-a" />
-          <input type="hidden" name="redirectTo" value="/onboarding" />
+        {query.error && <p role="alert" className="mt-4 text-sm text-danger">{query.error}</p>}
+        <form action="/api/auth/register" method="POST" className="mt-6 space-y-4">
 
           <div>
             <label htmlFor="displayName" className="block text-xs font-semibold text-navy mb-1.5">
@@ -89,7 +89,6 @@ export default function RegisterPage() {
               type="checkbox"
               name="acceptTerms"
               required
-              defaultChecked
               className="mt-0.5 h-4 w-4 rounded border-border text-navy"
             />
             <span>

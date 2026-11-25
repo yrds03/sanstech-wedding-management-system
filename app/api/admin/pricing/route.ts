@@ -1,12 +1,17 @@
+import { routeError, readFormBody } from '@/lib/http';
 import { NextResponse } from 'next/server';
 import { getCurrentUserServer } from '@/lib/auth/session';
 import { createAppError, getHttpStatusForError } from '@/lib/errors';
-import { getAddOnsCatalog, updatePlatformPricingAndRetention } from '@/lib/plans';
+import { getAddOnsCatalog } from '@/lib/plans';
 import { resetAllDataToZero, updateEventPlanByAdmin } from '@/lib/db/repository';
 import { PlanCode } from '@/lib/types';
 import { verifySameOriginMutation } from '@/lib/security/rate-limit';
+import {savePlatformPricing,pricingSchema} from '@/lib/plans/server';
+import {isLocalDemoEnabled} from '@/lib/config';
 
 export async function POST(request: Request) {
+  try {
+
   if (!verifySameOriginMutation(request)) {
     return NextResponse.json(createAppError('FORBIDDEN', 'Origin request tidak sah.'), {
       status: 403,
@@ -24,11 +29,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const formData = await request.formData();
+  const formData = await readFormBody(request);
   const action = String(formData.get('action') ?? 'update_pricing');
 
   if (action === 'reset_all_to_zero') {
-    resetAllDataToZero();
+    if(!isLocalDemoEnabled())return NextResponse.json(createAppError('FORBIDDEN','Reset data produksi tidak diizinkan.'),{status:403});
+    (await resetAllDataToZero());
     return NextResponse.redirect(
       new URL(
         `/admin?notice=${encodeURIComponent(
@@ -43,11 +49,11 @@ export async function POST(request: Request) {
   if (action === 'activate_event_plan') {
     const eventId = String(formData.get('eventId') ?? '');
     const planCode = (String(formData.get('planCode') ?? 'pro') as PlanCode) || 'pro';
-    const res = updateEventPlanByAdmin({
+    const res = (await updateEventPlanByAdmin({
       actorUserId: user.userId,
       eventId,
       planCode,
-    });
+    }));
 
     return NextResponse.redirect(
       new URL(`/admin?notice=${encodeURIComponent(res.message)}`, request.url),
@@ -70,12 +76,14 @@ export async function POST(request: Request) {
     }
   }
 
-  updatePlatformPricingAndRetention({
+  const pricing=pricingSchema.safeParse({
     proPriceIdr,
     proPlusPriceIdr,
     gracePeriodDaysAfterEvent,
     addOnsPrices,
   });
+  if(!pricing.success)return NextResponse.json(createAppError('VALIDATION_ERROR','Harga harus bilangan bulat valid dan masa akses 1–365 hari.'),{status:400});
+  await savePlatformPricing(pricing.data);
 
   return NextResponse.redirect(
     new URL(
@@ -86,4 +94,6 @@ export async function POST(request: Request) {
     ),
     303
   );
+
+  } catch (error) { return routeError(error); }
 }

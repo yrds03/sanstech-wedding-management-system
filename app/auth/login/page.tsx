@@ -1,12 +1,15 @@
 import Link from 'next/link';
 import { BRAND_NAME } from '@/lib/types';
+import { isLocalDemoEnabled, safeRedirectPath } from '@/lib/config';
 
-export default function LoginPage({
-  searchParams,
+export default async function LoginPage({
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { next?: string; error?: string };
+  searchParams?: Promise<{ next?: string; error?: string; notice?: string }>;
 }) {
-  const nextUrl = searchParams?.next ?? '/app/workspaces';
+  const searchParams = await searchParamsPromise;
+
+  const nextUrl = safeRedirectPath(searchParams?.next);
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-ivory px-4 py-12">
@@ -31,7 +34,8 @@ export default function LoginPage({
           </div>
         )}
 
-        <form action="/api/auth/dev-session" method="POST" className="mt-6 space-y-4">
+        {searchParams?.notice && <p role="status" className="mt-4 text-sm text-success">{searchParams.notice}</p>}
+        <form action="/api/auth/login" method="POST" className="mt-6 space-y-4">
           <input type="hidden" name="redirectTo" value={nextUrl} />
 
           <div>
@@ -42,6 +46,7 @@ export default function LoginPage({
               id="email"
               name="email"
               type="email"
+              autoComplete="email"
               required
               placeholder="Masukkan alamat email resmi Anda"
               className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink focus:bg-surface"
@@ -64,6 +69,9 @@ export default function LoginPage({
               id="password"
               name="password"
               type="password"
+              required
+              minLength={8}
+              autoComplete="current-password"
               placeholder="••••••••"
               className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink focus:bg-surface"
             />
@@ -78,10 +86,10 @@ export default function LoginPage({
         </form>
 
         <div className="mt-4 rounded-button border border-gold/30 bg-gold/10 p-3 text-[11px] text-ink/75 leading-relaxed">
-          <strong>Diundang sebagai Pasangan / Petugas?</strong> Ketik email yang diundang oleh WO (kata sandi
-          boleh dikosongkan pada mode uji coba) — Anda langsung masuk ke acara dengan peran undangan Anda.
-          Atau buka tautan undangan yang dikirim lewat WhatsApp.
+          <strong>Diundang sebagai pasangan atau petugas?</strong> Masuk dengan akun yang menggunakan
+          email penerima undangan, lalu buka tautan undangan dari penyelenggara.
         </div>
+        {isLocalDemoEnabled() && <div className="mt-4 border rounded p-3 text-sm"><p>Simulasi lokal — data pengujian</p>{['user-wo-a','user-couple-andi','user-wo-b','user-platform-admin'].map(userId=><form key={userId} action="/api/auth/dev-session" method="POST"><input type="hidden" name="userId" value={userId}/><input type="hidden" name="redirectTo" value={nextUrl}/><button className="py-2 underline">{userId}</button></form>)}</div>}
 
         <div className="mt-6 pt-5 border-t border-border flex items-center justify-between text-xs text-ink/70">
           <span>

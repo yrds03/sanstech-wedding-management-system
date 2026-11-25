@@ -1,3 +1,6 @@
+import { loadPlatformPricing } from '@/lib/plans/server';
+import { isLocalDemoEnabled } from '@/lib/config';
+import { hasPermission } from '@/lib/permissions';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
@@ -11,38 +14,49 @@ import { AppShell } from '@/components/app/app-shell';
 import { Badge, EmptyState } from '@/components/ui/primitives';
 import { getPlansCatalog } from '@/lib/plans';
 import { BatchImportBox } from '@/components/guests/batch-import-box';
+import { EditGuestForm } from '@/components/guests/edit-guest-form';
+import {Pagination,pageWindow} from '@/components/app/pagination';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EventGuestsPage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { eventId: string };
-  searchParams?: {
+  params: Promise<{ eventId: string }>;
+  searchParams?: Promise<{
     q?: string;
     category?: string;
     added?: string;
     imported?: string;
     reset_notice?: string;
     error?: string;
-  };
+    page?:string;
+  }>;
 }) {
+  await loadPlatformPricing();
+
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
+
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}/guests`);
-  const event = getEventIfAuthorized(user.userId, params.eventId);
+  const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
   if (!event) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
+  if (!hasPermission(event.myEffectiveRole, 'event:manage_guests')) notFound();
+
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
   const groups =
-    listInvitationGroupsForEvent(user.userId, event.id, {
+    (await listInvitationGroupsForEvent(user.userId, event.id, {
       query: searchParams?.q,
       category: searchParams?.category,
-    }) ?? [];
+    })) ?? [];
   const plan = getPlansCatalog()[event.planCode];
+  const pagination=pageWindow(groups.length,50,searchParams?.page);
 
   return (
     <AppShell
@@ -74,7 +88,7 @@ export default async function EventGuestsPage({
             </p>
           </div>
 
-          <form action={`/api/events/${event.id}/testing-reset`} method="POST">
+          {isLocalDemoEnabled() && (<form action={`/api/events/${event.id}/testing-reset`} method="POST">
             <input type="hidden" name="mode" value="delete_all_test_guests" />
             <input type="hidden" name="returnTo" value={`/app/e/${event.id}/guests`} />
             <button
@@ -83,7 +97,7 @@ export default async function EventGuestsPage({
             >
               🗑️ Bersihkan Semua Tamu Testing
             </button>
-          </form>
+          </form>)}
         </div>
 
         {searchParams?.added && (
@@ -315,10 +329,11 @@ export default async function EventGuestsPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {groups.map((g) => (
+                  {groups.slice(pagination.start,pagination.end).map((g) => (
                     <tr key={g.id} className="hover:bg-ivory/50">
                       <td className="py-3.5 pr-3">
                         <p className="font-bold text-navy">{g.displayName}</p>
+                        <EditGuestForm group={g}/>
                         {g.notesPrivateOptional && (
                           <p className="text-[11px] text-ink/60">
                             🔒 Catatan WO: {g.notesPrivateOptional}
@@ -379,7 +394,7 @@ export default async function EventGuestsPage({
                           )}`}
                           className="inline-flex items-center rounded bg-navy px-2.5 py-1 text-xs font-bold text-gold-light hover:bg-navy-light"
                         >
-                          Simulasi Scan ({g.qrTokenPreview})
+                          Buka scanner
                         </Link>
                       </td>
                     </tr>
@@ -389,6 +404,7 @@ export default async function EventGuestsPage({
             </div>
           )}
         </section>
+        <Pagination {...pagination} path={`/app/e/${event.id}/guests`} query={{q:searchParams?.q,category:searchParams?.category}}/>
       </div>
     </AppShell>
   );

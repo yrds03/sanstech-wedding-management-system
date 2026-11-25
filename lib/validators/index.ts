@@ -39,11 +39,7 @@ export const registerSchema = z
       .min(8, 'Kata sandi minimal 8 karakter.')
       .max(72, 'Kata sandi maksimal 72 karakter.'),
     confirmPassword: z.string().min(8, 'Konfirmasi kata sandi wajib diisi.'),
-    acceptTerms: z.literal(true, {
-      errorMap: () => ({
-        message: 'Anda wajib menyetujui Kebijakan Privasi & Ketentuan Pelindungan Data Pribadi.',
-      }),
-    }),
+    acceptTerms: z.literal(true, { error: 'Anda wajib menyetujui kebijakan privasi.' }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Konfirmasi kata sandi tidak cocok.',
@@ -52,7 +48,7 @@ export const registerSchema = z
 
 export const onboardingWorkspaceSchema = z.object({
   type: z.enum(['wo', 'personal'], {
-    errorMap: () => ({ message: 'Pilih jenis penggunaan aplikasi.' }),
+    error: 'Pilih jenis penggunaan aplikasi.',
   }),
   name: z
     .string()
@@ -89,13 +85,14 @@ export const createOrUpdateEventSchema = z
       .max(80, 'Nama mempelai terlalu panjang.'),
     eventDate: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal acara harus YYYY-MM-DD.'),
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal acara harus YYYY-MM-DD.')
+      .refine((value) => { const d = new Date(`${value}T00:00:00Z`); return !Number.isNaN(d.valueOf()) && d.toISOString().slice(0, 10) === value; }, 'Tanggal acara tidak valid.'),
     startTime: z
       .string()
-      .regex(/^\d{2}:\d{2}$/, 'Format waktu mulai harus HH:MM.'),
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Waktu mulai tidak valid.'),
     endTime: z
       .string()
-      .regex(/^\d{2}:\d{2}$/, 'Format waktu selesai harus HH:MM.'),
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Waktu selesai tidak valid.'),
     timezone: z
       .enum(['Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura'])
       .default('Asia/Jakarta'),

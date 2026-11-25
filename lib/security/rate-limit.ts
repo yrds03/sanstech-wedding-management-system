@@ -28,6 +28,8 @@ export function checkRateLimit(params: {
 }): { allowed: boolean; remaining: number; retryAfterSeconds: number } {
   const buckets = getBuckets();
   const now = Date.now();
+  buckets.forEach((bucket,key) => {if (bucket.resetAt <= now) buckets.delete(key);});
+  if (buckets.size >= 10000 && !buckets.has(params.key)) return { allowed: false, remaining: 0, retryAfterSeconds: 60 };
   const existing = buckets.get(params.key);
 
   if (!existing || existing.resetAt <= now) {
@@ -63,14 +65,10 @@ export function checkRateLimit(params: {
  */
 export function verifySameOriginMutation(request: Request): boolean {
   const origin = request.headers.get('origin');
-  const host = request.headers.get('host');
-  if (!origin || !host) {
-    // Form POST dalam browser modern mengirim Origin; izinkan dalam test runner lokal tanpa header
-    return true;
-  }
+  if (!origin) return request.headers.get('sec-fetch-site') === 'same-origin';
   try {
     const originUrl = new URL(origin);
-    return originUrl.host === host;
+    return originUrl.origin === new URL(request.url).origin;
   } catch {
     return false;
   }

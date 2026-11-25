@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { BRAND_NAME } from '@/lib/types';
 
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage({searchParams}:{searchParams:Promise<{error?:string;notice?:string}>}) {
+  const query = await searchParams;
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-ivory px-4 py-12">
       <div className="w-full max-w-md rounded-card border border-border bg-surface p-6 sm:p-8 shadow-sm">
@@ -11,7 +12,9 @@ export default function ForgotPasswordPage() {
           pemulihan kata sandi akan dikirimkan ke email Anda.
         </p>
 
-        <form action="/auth/login" method="GET" className="mt-6 space-y-4">
+        {query.error && <p role="alert" className="mt-4 text-sm text-danger">{query.error}</p>}
+        {query.notice && <p role="status" className="mt-4 text-sm text-success">{query.notice}</p>}
+        <form action="/api/auth/forgot-password" method="POST" className="mt-6 space-y-4">
           <div>
             <label htmlFor="email" className="block text-xs font-semibold text-navy mb-1.5">
               Alamat Email

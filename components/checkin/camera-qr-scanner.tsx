@@ -28,12 +28,14 @@ export function CameraQrScanner({
   groups = [],
 }: CameraQrScannerProps) {
   const [qrToken, setQrToken] = useState(initialToken);
+  const [method,setMethod]=useState<'qr'|'manual'>('qr');
+  const [submitting,setSubmitting]=useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedGuest, setSelectedGuest] = useState<ScannerGuestOption | null>(null);
   const [deltaAttendees, setDeltaAttendees] = useState(1);
   const [cameraActive, setCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const [autoSubmitOnScan, setAutoSubmitOnScan] = useState(true);
+  const [autoSubmitOnScan, setAutoSubmitOnScan] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanDetectedMessage, setScanDetectedMessage] = useState<string | null>(null);
 
@@ -42,6 +44,9 @@ export function CameraQrScanner({
   const formRef = useRef<HTMLFormElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number | null>(null);
+  const generationRef=useRef(0);
+  const cameraTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const submitTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null);
 
   function playBeep() {
     try {
@@ -56,12 +61,15 @@ export function CameraQrScanner({
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.15);
+      osc.onended = () => { void ctx.close(); };
     } catch {
       // Abaikan jika browser memblokir audio otomatis
     }
   }
 
   function stopCamera() {
+    generationRef.current++;
+    if(cameraTimerRef.current)clearTimeout(cameraTimerRef.current);
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
@@ -77,6 +85,7 @@ export function CameraQrScanner({
 
   async function startCamera(mode: 'environment' | 'user' = facingMode) {
     stopCamera();
+    const generation=generationRef.current;
     setCameraError(null);
     setScanDetectedMessage(null);
 
@@ -96,16 +105,17 @@ export function CameraQrScanner({
         },
         audio: false,
       });
+      if(generation!==generationRef.current){stream.getTracks().forEach(track=>track.stop());return;}
 
       streamRef.current = stream;
       setCameraActive(true);
 
-      setTimeout(() => {
-        if (videoRef.current) {
+      cameraTimerRef.current=setTimeout(() => {
+        if (videoRef.current && streamRef.current===stream) {
           videoRef.current.srcObject = stream;
           videoRef.current.setAttribute('playsinline', 'true');
-          void videoRef.current.play();
-          requestAnimationFrame(tickScanFrame);
+          void videoRef.current.play().catch(()=>{stopCamera();setCameraError('Kamera belum dapat diputar. Gunakan pencarian manual.');});
+          animFrameRef.current=requestAnimationFrame(tickScanFrame);
         }
       }, 100);
     } catch {
@@ -136,11 +146,12 @@ export function CameraQrScanner({
           const detected = code.data.trim();
           playBeep();
           setQrToken(detected);
+          setMethod('qr');setSelectedGuest(groups.find(g=>g.qrTokenPreview===detected)??null);
           setScanDetectedMessage(`✓ QR Terdeteksi: ${detected}`);
           stopCamera();
 
           if (autoSubmitOnScan && formRef.current) {
-            setTimeout(() => {
+            submitTimerRef.current=setTimeout(() => {
               formRef.current?.requestSubmit();
             }, 250);
           }
@@ -188,6 +199,7 @@ export function CameraQrScanner({
     const input = e.target;
     const file = input.files?.[0];
     if (!file) return;
+    if(file.size>5*1024*1024){setCameraError('Ukuran gambar maksimal 5 MB.');return;}
     setCameraError(null);
     setScanDetectedMessage(null);
 
@@ -201,6 +213,7 @@ export function CameraQrScanner({
       if (detected) {
         playBeep();
         setQrToken(detected);
+        setMethod('qr');setSelectedGuest(groups.find(g=>g.qrTokenPreview===detected)??null);
         setShowSuggestions(false);
         setScanDetectedMessage(
           autoSubmitOnScan
@@ -208,7 +221,7 @@ export function CameraQrScanner({
             : `✓ QR dari gambar terbaca: ${detected} — tekan Konfirmasi Kehadiran.`
         );
         if (autoSubmitOnScan) {
-          setTimeout(() => formRef.current?.requestSubmit(), 250);
+          submitTimerRef.current=setTimeout(() => formRef.current?.requestSubmit(), 250);
         }
       } else {
         setCameraError(
@@ -239,6 +252,7 @@ export function CameraQrScanner({
       : [];
 
   function selectSuggestion(g: ScannerGuestOption) {
+    setMethod('manual');
     setQrToken(g.qrTokenPreview);
     setDeltaAttendees(1);
     setSelectedGuest(g);
@@ -249,6 +263,7 @@ export function CameraQrScanner({
   useEffect(() => {
     return () => {
       stopCamera();
+      if(submitTimerRef.current)clearTimeout(submitTimerRef.current);
     };
   }, []);
 
@@ -360,9 +375,10 @@ export function CameraQrScanner({
         ref={formRef}
         action={`/api/events/${eventId}/checkins`}
         method="POST"
+        onSubmit={e=>{if(submitting||!navigator.onLine){e.preventDefault();if(!navigator.onLine)setCameraError('Koneksi terputus. Kehadiran belum dikirim. Sambungkan internet lalu coba lagi.');return;}setSubmitting(true);stopCamera();}}
         className="space-y-4 rounded-button border border-border bg-ivory/60 p-4"
       >
-        <input type="hidden" name="method" value="qr" />
+        <input type="hidden" name="method" value={method} />
         <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
 
         <div className="relative">
@@ -377,6 +393,7 @@ export function CameraQrScanner({
             value={qrToken}
             onChange={(e) => {
               setQrToken(e.target.value);
+              setMethod('manual');
               setSelectedGuest(null);
               setShowSuggestions(true);
             }}
@@ -443,6 +460,7 @@ export function CameraQrScanner({
 
         <button
           type="submit"
+          disabled={submitting}
           className="w-full min-h-[48px] rounded-button bg-navy border border-gold/50 px-5 py-3 text-xs font-bold uppercase tracking-widest text-gold-light hover:bg-navy-light transition shadow"
         >
           ✓ Konfirmasi Kehadiran QR Sekarang

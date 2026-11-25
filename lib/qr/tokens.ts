@@ -2,7 +2,8 @@ import crypto from 'crypto';
 
 /**
  * Menghasilkan token acak kriptografis berentropi tinggi (URL-safe base64).
- * Token mentah hanya dikirim sekali ke tautan/QR; database hanya menyimpan hash SHA-256.
+ * Hash dipakai untuk pencocokan. Token mentah disimpan pada tabel privat agar pengelola
+ * dapat mengunduh ulang QR; akses tabel langsung tidak diberikan kepada pengguna API.
  */
 export function generateOpaqueToken(byteLength = 24): string {
   return crypto.randomBytes(byteLength).toString('base64url');
@@ -25,7 +26,7 @@ export function hashOpaqueToken(rawToken: string): string {
 export function sanitizeSpreadsheetCell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '';
   const str = String(value);
-  if (/^[=+\-@\t\r]/.test(str)) {
+  if (/^[\s\u0000-\u001f]*[=+\-@]/.test(str) || /^[\t\r\n]/.test(str)) {
     return `'${str}`;
   }
   return str;

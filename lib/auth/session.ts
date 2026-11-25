@@ -1,7 +1,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { UserProfile } from '@/lib/types';
-import { DEMO_USERS, getUserProfileById } from '@/lib/db/repository';
+import { DEMO_USERS, getUserProfileById } from '@/lib/db/demo-repository';
+import { readDemoSession } from './demo-session';
 import { isSupabaseConfigured } from '@/lib/db/supabase-browser';
 import { createSupabaseServerClient } from '@/lib/db/supabase-server';
 
@@ -12,13 +13,13 @@ export const SIMULATION_RETURN_COOKIE_NAME = 'sanstech_sim_return_uid';
 /**
  * Mengambil profil pengguna yang sedang masuk secara server-authoritative.
  * - Jika Supabase telah dikonfigurasi, memeriksa sesi JWT dari Supabase Auth.
- * - Jika kredensial Supabase belum dihubungkan (termasuk saat uji coba tim WO di Vercel),
- *   membaca cookie sesi sandbox yang aman agar seluruh peran (Super Admin, WO, Pengantin) dapat diuji.
+ * - Sesi simulasi bertanda tangan hanya diterima pada pengembangan lokal yang diaktifkan.
+ * - Produksi tanpa konfigurasi tidak menggunakan akun atau data simulasi sebagai fallback.
  */
 export async function getCurrentUserServer(): Promise<UserProfile | null> {
   if (isSupabaseConfigured()) {
     try {
-      const supabase = createSupabaseServerClient();
+      const supabase = await createSupabaseServerClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -27,10 +28,11 @@ export async function getCurrentUserServer(): Promise<UserProfile | null> {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name, phone_optional, is_platform_admin')
+        .select('display_name, phone_optional, is_platform_admin, status')
         .eq('user_id', user.id)
         .single();
 
+      if (!profile || profile.status !== 'active') return null;
       return {
         userId: user.id,
         email: user.email ?? '',
@@ -47,8 +49,8 @@ export async function getCurrentUserServer(): Promise<UserProfile | null> {
     }
   }
 
-  const cookieStore = cookies();
-  const devUid = cookieStore.get(DEV_SESSION_COOKIE_NAME)?.value;
+  const cookieStore = await cookies();
+  const devUid = readDemoSession(cookieStore.get(DEV_SESSION_COOKIE_NAME)?.value);
   if (devUid) {
     const profile = getUserProfileById(devUid) ?? DEMO_USERS[devUid] ?? null;
     if (profile) return profile;

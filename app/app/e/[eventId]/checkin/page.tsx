@@ -1,3 +1,4 @@
+import { isLocalDemoEnabled } from '@/lib/config';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
@@ -11,34 +12,41 @@ import {
 import { AppShell } from '@/components/app/app-shell';
 import { Badge } from '@/components/ui/primitives';
 import { hasPermission } from '@/lib/permissions';
+import {listScannerSessions} from '@/lib/db/scanners';
 import { CameraQrScanner } from '@/components/checkin/camera-qr-scanner';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EventCheckinScannerPage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { eventId: string };
-  searchParams?: {
+  params: Promise<{ eventId: string }>;
+  searchParams?: Promise<{
     prefill?: string;
     success?: string;
     reset_notice?: string;
     error?: string;
-  };
+  }>;
 }) {
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
+
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}/checkin`);
-  const event = getEventIfAuthorized(user.userId, params.eventId);
+  const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
   if (!event) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
-  const groups = listInvitationGroupsForEvent(user.userId, event.id) ?? [];
-  const ledger = listCheckinLedgerForEvent(user.userId, event.id) ?? [];
+  if (!hasPermission(event.myEffectiveRole, 'event:scan_checkin')) notFound();
+
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
+  const groups = (await listInvitationGroupsForEvent(user.userId, event.id)) ?? [];
+  const ledger = (await listCheckinLedgerForEvent(user.userId, event.id)) ?? [];
   const canCorrect = hasPermission(event.myEffectiveRole, 'event:correct_checkin');
+  const scannerSessions=canCorrect?await listScannerSessions(user.userId,event.id):[];
   const idempotencyKey = crypto.randomUUID();
 
   return (
@@ -51,6 +59,7 @@ export default async function EventCheckinScannerPage({
       eventTitle={event.title}
     >
       <div className="space-y-8">
+        {scannerSessions.length>0 && <details className="rounded-card border bg-surface p-4"><summary className="cursor-pointer font-semibold">Perangkat scanner dan pencabutan sesi</summary><p className="text-sm mt-2">Perangkat terhitung aktif selama dua menit setelah transaksi terakhir.</p>{scannerSessions.map(s=><div key={s.id} className="border-t mt-3 pt-3 flex flex-wrap justify-between gap-2"><p>{s.actorName} · {s.revoked?'Dicabut':s.active?'Aktif':'Tidak aktif'}</p>{!s.revoked&&<form action={`/api/events/${event.id}/scanners`} method="POST"><input type="hidden" name="sessionId" value={s.id}/><button className="text-danger underline">Cabut sesi perangkat</button></form>}</div>)}</details>}
         {/* Header Konsol Scanner Hari-H */}
         <div className="rounded-card border-2 border-gold/40 bg-navy-dark text-ivory p-6 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -70,7 +79,7 @@ export default async function EventCheckinScannerPage({
             </p>
           </div>
 
-          <form action={`/api/events/${event.id}/testing-reset`} method="POST">
+          {isLocalDemoEnabled() && (<form action={`/api/events/${event.id}/testing-reset`} method="POST">
             <input type="hidden" name="mode" value="reset_checkins_only" />
             <input type="hidden" name="returnTo" value={`/app/e/${event.id}/checkin`} />
             <button
@@ -79,7 +88,7 @@ export default async function EventCheckinScannerPage({
             >
               🔄 Reset Simulasi Check-in ke 0
             </button>
-          </form>
+          </form>)}
         </div>
 
         {searchParams?.success && (
@@ -276,7 +285,7 @@ export default async function EventCheckinScannerPage({
                 </p>
               ) : (
                 <ul className="space-y-2.5 max-h-[260px] overflow-y-auto pr-1">
-                  {ledger.map((item) => (
+                  {ledger.slice(0,100).map((item) => (
                     <li
                       key={item.id}
                       className="rounded-button border border-border bg-ivory/60 p-3 text-xs flex items-center justify-between gap-2"

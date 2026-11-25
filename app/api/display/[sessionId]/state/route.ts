@@ -1,3 +1,4 @@
+import { routeError } from '@/lib/http';
 import { NextResponse } from 'next/server';
 import { getDisplayScreenState } from '@/lib/db/repository';
 
@@ -5,9 +6,14 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   _request: Request,
-  context: { params: { sessionId: string } }
+  context: { params: Promise<{ sessionId: string }> }
 ) {
-  const state = getDisplayScreenState(context.params.sessionId);
+  try {
+
+  const params = await context.params;
+
+  const state = (await getDisplayScreenState(params.sessionId));
+  if (!state) return NextResponse.json({error:{code:'NOT_FOUND',message:'Sesi layar tidak valid atau kedaluwarsa.'}},{status:404,headers:{'Cache-Control':'no-store'}});
 
   return NextResponse.json({
     eventTitle: state.event.title,
@@ -25,5 +31,7 @@ export async function GET(
       : null,
     lastUpdatedIso: state.lastUpdatedIso,
   });
+
+  } catch (error) { return routeError(error); }
 }
 

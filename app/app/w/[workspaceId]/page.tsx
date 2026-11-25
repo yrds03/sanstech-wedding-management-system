@@ -11,19 +11,21 @@ import { Badge, EmptyState, StatCard } from '@/components/ui/primitives';
 import { formatEventDateId } from '@/lib/dates';
 
 export default async function WorkspaceDashboardPage({
-  params,
+  params: paramsPromise,
 }: {
-  params: { workspaceId: string };
+  params: Promise<{ workspaceId: string }>;
 }) {
+  const params = await paramsPromise;
+
   const user = await requireAuthenticatedUser(`/app/w/${params.workspaceId}`);
-  const workspace = getWorkspaceIfAuthorized(user.userId, params.workspaceId);
+  const workspace = (await getWorkspaceIfAuthorized(user.userId, params.workspaceId));
 
   if (!workspace) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const events = getAuthorizedEventsForWorkspace(user.userId, workspace.id) ?? [];
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const events = (await getAuthorizedEventsForWorkspace(user.userId, workspace.id)) ?? [];
 
   const totalInvitationGroups = events.reduce(
     (sum, ev) => sum + ev.metrics.invitationGroupsCount,

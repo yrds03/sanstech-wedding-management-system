@@ -51,9 +51,9 @@ export function splitDelimitedLine(line: string, delimiter: string): string[] {
 
 /** Deteksi pemisah: tab (paste langsung dari sel Excel) > titik koma (Excel Indonesia) > koma. */
 export function detectDelimiter(line: string): string {
-  if (line.includes('\t')) return '\t';
-  if (line.includes(';')) return ';';
-  return ',';
+  const counts:Record<string,number>={'\t':0,';':0,',':0};let quoted=false;
+  for(let i=0;i<line.length;i++){const ch=line[i]!;if(ch==='"'){if(quoted&&line[i+1]==='"'){i++;continue;}quoted=!quoted;}else if(!quoted&&Object.hasOwn(counts,ch))counts[ch]=(counts[ch]??0)+1;}
+  return Object.keys(counts).sort((a,b)=>counts[b]!-counts[a]!)[0]??',';
 }
 
 /** Ubah satu baris sel menjadi satu baris teks pratinjau berpemisah titik koma (aman untuk koma pada nama). */
@@ -66,13 +66,20 @@ export function toPreviewLine(cells: string[]): string {
 export interface ParsedGuestImport {
   rows: GuestImportRow[];
   skippedLines: number;
+  errors: string[];
 }
 
 /** Mengurai teks impor tamu (CSV `,` / `;`, tab, atau hasil tempel dari Excel) menjadi baris terstruktur. */
 export function parseGuestImportText(rawText: string): ParsedGuestImport {
-  const lines = rawText
-    .replace(/^\uFEFF/, '')
-    .split(/\r?\n/)
+  const records:string[]=[];let quoted=false;let record='';
+  for(let i=0;i<rawText.length;i++){const ch=rawText[i]!;
+    if(ch==='"'){if(quoted&&rawText[i+1]==='"'){record+='""';i++;continue;}quoted=!quoted;}
+    if(ch==='\n'&&!quoted){records.push(record);record='';}else record+=ch;
+  }
+  if(record)records.push(record);
+  if(quoted)return {rows:[],skippedLines:0,errors:['Tanda kutip CSV belum ditutup. Periksa kembali file.']};
+  const lines = records
+    .map(l=>l.replace(/^\uFEFF/,''))
     .map((l) => l.trim())
     .filter(Boolean)
     // Baris petunjuk Excel `sep=;` / `sep=,` bukan data tamu.
@@ -80,6 +87,8 @@ export function parseGuestImportText(rawText: string): ParsedGuestImport {
 
   const rows: GuestImportRow[] = [];
   let skippedLines = 0;
+  const errors: string[] = [];
+  if(rawText.length>5*1024*1024) return {rows:[],skippedLines:0,errors:['Ukuran data maksimal 5 MB.']};
 
   for (const line of lines) {
     const parts = splitDelimitedLine(line, detectDelimiter(line));
@@ -97,11 +106,15 @@ export function parseGuestImportText(rawText: string): ParsedGuestImport {
       continue;
     }
 
-    const capacity = Math.min(Math.max(Math.trunc(Number(parts[1])) || 2, 1), 50);
+    const capacity = Number(parts[1] || 2);
     const catRaw = (parts[2] ?? 'regular').toLowerCase();
     const guestCategory: GuestCategory =
       catRaw === 'vvip' ? 'vvip' : catRaw === 'vip' ? 'vip' : 'regular';
-    const tvRaw = (parts[4] ?? 'ya').toLowerCase();
+    const tvRaw = (parts[4] ?? 'tidak').toLowerCase();
+    if(name.length<2 || name.length>160 || !Number.isInteger(capacity) || capacity<1 || capacity>20 || !['regular','vip','vvip','reguler',''].includes(catRaw)) {
+      errors.push(`Baris ${rows.length+skippedLines+errors.length+1}: nama, kapasitas (1–20), atau kategori tidak valid.`); continue;
+    }
+    if(rows.length>=2000){errors.push('Maksimal 2.000 baris per impor.');break;}
 
     rows.push({
       displayName: name,
@@ -114,6 +127,6 @@ export function parseGuestImportText(rawText: string): ParsedGuestImport {
     });
   }
 
-  return { rows, skippedLines };
+  return { rows, skippedLines, errors };
 }
 

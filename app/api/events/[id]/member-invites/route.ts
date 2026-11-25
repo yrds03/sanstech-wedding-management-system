@@ -1,3 +1,4 @@
+import { routeError, readFormBody, readJsonBody } from '@/lib/http';
 import { NextResponse } from 'next/server';
 import { getCurrentUserServer } from '@/lib/auth/session';
 import { createAppError, getHttpStatusForError } from '@/lib/errors';
@@ -12,8 +13,12 @@ import { EventRole } from '@/lib/types';
 
 export async function GET(
   _request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  try {
+
+  const params = await context.params;
+
   const user = await getCurrentUserServer();
   if (!user) {
     return NextResponse.json(createAppError('UNAUTHORIZED'), {
@@ -21,7 +26,7 @@ export async function GET(
     });
   }
 
-  const invites = listMemberInvitesForEvent(user.userId, context.params.id);
+  const invites = (await listMemberInvitesForEvent(user.userId, params.id));
   if (!invites) {
     return NextResponse.json(createAppError('NOT_FOUND'), {
       status: getHttpStatusForError('NOT_FOUND'),
@@ -29,12 +34,18 @@ export async function GET(
   }
 
   return NextResponse.json({ invites });
+
+  } catch (error) { return routeError(error); }
 }
 
 export async function POST(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  try {
+
+  const params = await context.params;
+
   const user = await getCurrentUserServer();
   if (!user) {
     return NextResponse.json(createAppError('UNAUTHORIZED'), {
@@ -42,7 +53,7 @@ export async function POST(
     });
   }
 
-  const event = getEventIfAuthorized(user.userId, context.params.id);
+  const event = (await getEventIfAuthorized(user.userId, params.id));
   if (!event) {
     return NextResponse.json(createAppError('NOT_FOUND'), {
       status: getHttpStatusForError('NOT_FOUND'),
@@ -56,13 +67,13 @@ export async function POST(
   let inviteId = '';
 
   if (contentType.includes('application/json')) {
-    const body = (await request.json()) as Record<string, unknown>;
+    const body = (await readJsonBody(request)) as Record<string, unknown>;
     action = String(body.action ?? 'create');
     recipientEmail = String(body.recipientEmail ?? '');
     roleGrant = (body.role as EventRole) ?? 'receptionist';
     inviteId = String(body.inviteId ?? '');
   } else {
-    const formData = await request.formData();
+    const formData = await readFormBody(request);
     action = String(formData.get('action') ?? 'create');
     recipientEmail = String(formData.get('recipientEmail') ?? '');
     roleGrant = (formData.get('role') as EventRole) ?? 'receptionist';
@@ -70,11 +81,11 @@ export async function POST(
   }
 
   if (action === 'revoke') {
-    const revoked = revokeEventMemberInvite({
+    const revoked = (await revokeEventMemberInvite({
       actorUserId: user.userId,
       eventId: event.id,
       inviteId,
-    });
+    }));
 
     if (!revoked.ok) {
       return NextResponse.json(createAppError('FORBIDDEN', revoked.error), {
@@ -105,12 +116,12 @@ export async function POST(
     });
   }
 
-  const created = createEventMemberInvite({
+  const created = (await createEventMemberInvite({
     actorUserId: user.userId,
     eventId: event.id,
     recipientEmail,
     eventRoleGrant: roleGrant,
-  });
+  }));
 
   if ('error' in created) {
     return NextResponse.json(createAppError('FORBIDDEN', created.error), {
@@ -129,5 +140,7 @@ export async function POST(
   }
 
   return NextResponse.json(created, { status: 201 });
+
+  } catch (error) { return routeError(error); }
 }
 

@@ -1,3 +1,4 @@
+import { loadPlatformPricing } from '@/lib/plans/server';
 import Link from 'next/link';
 import { BRAND_NAME, BRAND_SHORT_NAME, BRAND_TAGLINE } from '@/lib/types';
 import { getAddOnsCatalog, getPlansCatalog, getPostEventRetentionConfig } from '@/lib/plans';
@@ -7,6 +8,8 @@ import { getCurrentUserServer } from '@/lib/auth/session';
 export const dynamic = 'force-dynamic';
 
 export default async function LandingPage() {
+  const pricingReady=await loadPlatformPricing({allowFallback:true});
+
   const currentUser = await getCurrentUserServer();
   const catalog = getPlansCatalog();
   const addOns = getAddOnsCatalog();
@@ -15,13 +18,14 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-ivory">
+      {pricingReady===false&&<p role="status" className="bg-gold/15 p-4 text-center text-sm">Layanan akun sedang disiapkan. Konfirmasikan harga kepada pengelola sebelum memesan.</p>}
       {/* Luxury Top Bar (Tanpa menampilkan link Pengaturan Harga Super Admin ke Klien/Publik) */}
       <div className="bg-navy-dark text-gold-light px-4 py-2 text-[11px] tracking-widest uppercase border-b border-gold/25">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <span>
             ✦ SANSTECH HOSPITALITY &amp; ROYAL WEDDING SUITE · ENTERPRISE MULTI-TENANT SECURITY
           </span>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <Link href="/tv" className="hover:text-white underline underline-offset-4">
               📺 Koneksi TV / LED Panggung (/tv)
             </Link>
@@ -39,9 +43,9 @@ export default async function LandingPage() {
 
       {/* Navbar */}
       <header className="sticky top-0 z-30 border-b border-gold/25 bg-surface/95 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3.5">
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-button bg-gradient-to-br from-navy via-navy-light to-navy-dark text-gold-light border border-gold/50 font-serif text-2xl font-bold shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 min-h-20 py-3 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3.5">
+            <span className="inline-flex shrink-0 h-11 w-11 items-center justify-center rounded-button bg-gradient-to-br from-navy via-navy-light to-navy-dark text-gold-light border border-gold/50 font-serif text-2xl font-bold shadow-sm">
               S
             </span>
             <div>
@@ -69,7 +73,7 @@ export default async function LandingPage() {
             </Link>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex w-full sm:w-auto items-center gap-3">
             {currentUser ? (
               <Link
                 href="/app/workspaces"
@@ -83,7 +87,7 @@ export default async function LandingPage() {
                   href="/auth/login"
                   className="min-h-[44px] inline-flex items-center rounded-button border border-gold/40 bg-surface px-4 py-2 text-xs font-bold uppercase tracking-wider text-navy hover:bg-ivory transition"
                 >
-                  Masuk / Simulasi
+                  Masuk
                 </Link>
                 <Link
                   href="/auth/register"
@@ -175,7 +179,7 @@ export default async function LandingPage() {
             {
               step: 'V',
               title: 'Koreksi Supervisor & Reset Testing',
-              desc: 'Dilengkapi tombol Hapus/Reset Data Simulasi 1-Klik sebelum acara dimulai, serta koreksi kehadiran oleh Supervisor yang tercatat di Audit Log.',
+              desc: 'Koreksi kehadiran oleh Supervisor wajib disertai alasan dan dicatat dalam audit. Riwayat transaksi tetap tersimpan agar laporan dapat direkonsiliasi.',
             },
             {
               step: 'VI',

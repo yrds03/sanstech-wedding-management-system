@@ -1,3 +1,4 @@
+import { hasPermission } from '@/lib/permissions';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
@@ -9,30 +10,37 @@ import {
 } from '@/lib/db/repository';
 import { AppShell } from '@/components/app/app-shell';
 import { Badge, EmptyState } from '@/components/ui/primitives';
+import {AutoRefresh} from '@/components/event/auto-refresh';
+import {listVipNotifications} from '@/lib/db/vip';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EventVipUsherPage({
-  params,
+  params: paramsPromise,
 }: {
-  params: { eventId: string };
+  params: Promise<{ eventId: string }>;
 }) {
+  const params = await paramsPromise;
+
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}/vip`);
-  const event = getEventIfAuthorized(user.userId, params.eventId);
+  const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
   if (!event) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
-  const allGroups = listInvitationGroupsForEvent(user.userId, event.id) ?? [];
+  if (!hasPermission(event.myEffectiveRole, 'event:view_vip_queue')) notFound();
+
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
+  const allGroups = (await listInvitationGroupsForEvent(user.userId, event.id)) ?? [];
   const vipGroups = allGroups.filter(
     (g) => g.guestCategory === 'vvip' || g.guestCategory === 'vip'
   );
 
   const arrivedVips = vipGroups.filter((g) => g.checkedInCount > 0);
   const waitingVips = vipGroups.filter((g) => g.checkedInCount === 0);
+  const notifications=await listVipNotifications(user.userId,event.id);
 
   return (
     <AppShell
@@ -44,6 +52,8 @@ export default async function EventVipUsherPage({
       eventTitle={event.title}
     >
       <div className="space-y-8">
+        <AutoRefresh/>
+        {notifications.length>0 && <section className="rounded-card border bg-surface p-6 space-y-3"><h2 className="text-xl font-bold">Notifikasi penjemputan VIP</h2>{notifications.map(n=><div key={n.id} className="border rounded p-3"><p>{n.displayName} · {n.tableLabel??'Meja belum ditentukan'}</p>{n.status==='acknowledged'?<p className="text-success">Sudah ditangani</p>:<form action={`/api/events/${event.id}/vip`} method="POST"><input type="hidden" name="notificationId" value={n.id}/><button className="rounded bg-navy text-white px-3 py-2 mt-2">Tandai sudah dijemput</button></form>}</div>)}</section>}
         <div>
           <Badge variant="gold">PANEL KOORDINASI PROTOKOL VIP &amp; TIM USHER (S15)</Badge>
           <h1 className="mt-2 font-serif text-3xl font-bold text-navy">
@@ -70,7 +80,7 @@ export default async function EventVipUsherPage({
               <EmptyState
                 title="Belum Ada Tamu VIP yang Check-in"
                 description="Saat tamu VIP/VVIP memindai QR di meja registrasi, kartu penjemputan akan langsung muncul di sini."
-                actionLabel="Simulasikan Scan VIP"
+                actionLabel="Buka scanner"
                 actionHref={`/app/e/${event.id}/checkin`}
               />
             ) : (

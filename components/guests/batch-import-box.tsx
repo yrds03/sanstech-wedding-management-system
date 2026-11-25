@@ -19,6 +19,7 @@ export function BatchImportBox({ eventId, maxGroupsLimit }: BatchImportBoxProps)
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if(file.size>5*1024*1024){setFileError('Ukuran file maksimal 5 MB.');return;}
     setFileError(null);
     setFileName(file.name);
 
@@ -90,6 +91,7 @@ export function BatchImportBox({ eventId, maxGroupsLimit }: BatchImportBoxProps)
 
       {/* Langkah 3: Pratinjau & Submit */}
       <form action={`/api/events/${eventId}/guests`} method="POST" className="space-y-3">
+        {parsed.errors.length>0 && <div role="alert" className="text-sm text-danger">{parsed.errors.slice(0,10).map((error,i)=><p key={i}>{error}</p>)}</div>}
         <input type="hidden" name="action" value="import_csv_lines" />
         <div>
           <label className="block text-[11px] font-semibold text-ink/75 mb-1">
@@ -147,6 +149,7 @@ export function BatchImportBox({ eventId, maxGroupsLimit }: BatchImportBoxProps)
 
         <button
           type="submit"
+          disabled={parsed.errors.length>0 || !parsed.rows.length || parsed.rows.length>maxGroupsLimit}
           className="w-full min-h-[42px] rounded-button bg-navy border border-gold/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-gold-light hover:bg-navy-light transition"
         >
           🚀 Import Semua Baris Sekaligus

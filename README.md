@@ -1,81 +1,73 @@
-# SANSTECH Wedding Management System (WeddingHub)
+# SANSTECH Wedding Management System
 
-> **Tagline:** *"Satu platform untuk mengelola perjalanan tamu, dari menerima undangan sampai pulang dari acara."*
+Aplikasi berbahasa Indonesia untuk WO dan pengantin: workspace, acara, tim, undangan digital, RSVP, check-in parsial, TV sambutan, dan laporan.
 
-Sistem SaaS multi-workspace, multi-event, dan multi-role untuk **Wedding Organizer (WO)** dan **Calon Pengantin**. Dirancang sesuai spesifikasi `01_PRD_WEDDINGHUB.md`, `02_UX_FLOW_WIREFRAMES.md`, `03_BACKLOG_TEST_CASES.md`, dan `AGENTS.md`.
+## Menjalankan lokal
 
----
+Gunakan Node.js **24 LTS** dan npm.
 
-## Fitur yang Telah Diimplementasikan (Sprint 0 & Sprint 1)
+```powershell
+npm ci
+Copy-Item .env.example .env.local
+npm run dev
+```
 
-1. **Fondasi & Desain Visual (Sprint 0):**
-   - Next.js App Router + TypeScript `strict` + Tailwind CSS dengan palet resmi (`navy #15263F`, `ivory #FAF8F4`, `gold #B28A50`, `success #16805D`, `danger #C33F49`).
-   - Halaman utama (`/`) berbahasa Indonesia dengan penjelasan 6 modul ekosistem, simulasi pemisahan layar VIP vs notifikasi internal usher, dan tabel paket per acara (`Free`, `Pro`, `Pro Plus`).
-   - Skema penuh PostgreSQL + Row Level Security (RLS) + fungsi SQL check-in atomik (`perform_atomic_checkin`) di `supabase/migrations/20261027000001_initial_schema_and_rls.sql`.
-   - Pemisahan klien Supabase Browser (`lib/db/supabase-browser.ts`) dan Server (`lib/db/supabase-server.ts`) tanpa pernah membocorkan `SUPABASE_SERVICE_ROLE_KEY` ke client.
+Isi URL dan anon key Supabase untuk menggunakan autentikasi/database sebenarnya. Untuk **simulasi lokal saja**, kosongkan kedua nilai tersebut dan isi `LOCAL_DEMO_MODE=true`. Akun pengujian tampil di `/auth/login`. Data simulasi disimpan di `.local-data/` yang diabaikan Git. Jangan masukkan data pribadi sungguhan ke simulasi.
 
-2. **Onboarding, Multi-Workspace, Acara & Kolaborasi Tim (Sprint 1):**
-   - Autentikasi (`/auth/login`, `/auth/register`, `/auth/forgot-password`) + panel penguji multi-peran pada mode pengembangan lokal.
-   - Onboarding idempotent (`/onboarding`) untuk memilih peran utama: **Wedding Organizer (WO)** atau **Calon Pengantin**.
-   - Pemilih workspace & akses acara lintas peran (`/app/workspaces`).
-   - Dashboard Wedding Organizer (`/app/w/[workspaceId]`) dan manajemen pembuatan acara (`/app/w/[workspaceId]/events`).
-   - Dashboard Ringkasan Acara (`/app/e/[eventId]`) dengan 6 metrik terpisah secara eksplisit (*Jumlah Undangan*, *Kuota Orang*, *Rencana RSVP*, *Orang Hadir*, *Grup Hadir*, *VIP Hadir*) serta riwayat Audit Log.
-   - Pengaturan Acara (`/app/e/[eventId]/settings`), Sistem Undangan Anggota Tim & Pasangan dengan token berbatas waktu dan pencabutan akses (`/app/e/[eventId]/team`), serta halaman Paket & Lisensi (`/app/e/[eventId]/plan`).
+Mode simulasi selalu ditolak pada build produksi/Vercel. Tanpa konfigurasi database, halaman publik tetap terbuka; dashboard menampilkan status penyiapan dan API privat mengembalikan 503. Tidak ada login produksi dengan email saja atau kata sandi bawaan.
 
----
+## Menyiapkan Supabase
 
-## Persyaratan Sistem
+1. Pilih proyek Supabase yang benar, ambil cadangan, dan tinjau migration sebelum penerapan.
+2. Terapkan seluruh file `supabase/migrations/` sesuai urutan nama. Migration baru adalah `20261125000002_production_repository.sql`. Jangan menjalankan ulang migration awal pada database yang sudah memilikinya.
+3. Atur `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY` pada environment lokal/Vercel. Runtime aplikasi tidak membutuhkan service-role key.
+4. Pada Supabase Auth, atur Site URL dan Redirect URLs untuk `https://DOMAIN/auth/callback`, termasuk hostname preview yang memang digunakan. Aktifkan konfirmasi email. Konfigurasikan SMTP untuk pengiriman email produksi dan uji email verifikasi serta pemulihan dari kotak masuk sebenarnya.
+5. Daftar melalui aplikasi. Profil dibuat oleh trigger database. Akun baru selalu non-admin. Penetapan administrator dilakukan oleh pemilik database melalui konsol SQL terkontrol untuk **UUID akun yang sudah diverifikasi**, bukan dari browser.
+6. Acara baru selalu memiliki paket Free. Permintaan paket berbayar dicatat; aktivasi dilakukan administrator setelah verifikasi pembayaran manual melalui `/admin`.
 
-- **Node.js** versi `18.18+` atau `20+` LTS (beserta `npm`).
-- **Git** (untuk manajemen versi dan unggah ke GitHub).
-- Proyek **Supabase** (untuk database PostgreSQL, Auth, dan RLS produksi/staging).
+Versi lama menggunakan data simulasi cookie/memori sementara. Data tersebut tidak otomatis menjadi data Supabase. Ekspor dan tinjau data lama sebelum pemindahan; aplikasi tidak menerima cookie lama sebagai sumber data atau identitas.
 
----
+## GitHub dan Vercel
 
-## Cara Menjalankan Aplikasi Secara Lokal
+Repository: https://github.com/yrds03/sanstech-wedding-management-system
 
-1. **Pasang seluruh dependensi:**
-   ```bash
-   npm install
-   ```
+Proyek Vercel yang terdeteksi: `yrds/sanstech-wedding-management-system`. Push ke `main` memicu integrasi deployment yang sudah terpasang. Gunakan Node.js 24, perintah instalasi `npm ci`, build `npm run build`, serta environment Supabase untuk target Production dan Preview yang digunakan. `NEXT_PUBLIC_APP_URL` boleh kosong agar tautan menggunakan hostname Vercel; isi origin HTTPS jika memakai domain sendiri.
 
-2. **Siapkan variabel environment:**
-   Salin `.env.example` menjadi `.env.local`, lalu isi dengan URL dan Anon Key dari dashboard Supabase Anda:
-   ```bash
-   cp .env.example .env.local
-   ```
-   *(Catatan: Jika `.env.local` belum diisi, aplikasi otomatis berjalan dalam **Mode Pengembangan Lokal / Sandbox** dengan akun uji WO A, Calon Pengantin Andi & Putri, serta WO Tenant B untuk menguji isolasi akses).*
+Perubahan skema **tidak dijalankan otomatis** saat deployment. Publikasi kode saja tidak membuktikan layanan Supabase/SMTP sudah dikonfigurasi. Uji staging, periksa hasil CI dan deployment, lalu jalankan uji lintas perangkat pada domain produksi.
 
-3. **Terapkan migration database ke Supabase Anda:**
-   Buka **SQL Editor** pada dashboard Supabase Anda (atau gunakan Supabase CLI), lalu jalankan isi file:
-   - `supabase/migrations/20261027000001_initial_schema_and_rls.sql`
+## Alur yang tersedia
 
-4. **Jalankan server pengembangan:**
-   ```bash
-   npm run dev
-   ```
-   Buka `http://localhost:3000` di browser.
+- `/auth/register`, `/auth/login`, `/auth/forgot-password`, `/auth/reset-password`: Supabase Auth dan callback verifikasi.
+- `/onboarding`, `/app/workspaces`, `/app/w/[workspaceId]/events`: workspace dan pembuatan acara.
+- `/app/e/[eventId]/settings`, `/team`, `/plan`: detail acara, undangan anggota berbatas waktu, pencabutan akses, dan paket.
+- `/guests`: input/edit tamu, privasi layar, pencarian, impor CSV/XLSX dengan pratinjau, validasi, deteksi calon duplikat, serta transaksi impor menyeluruh.
+- `/invitations`, `/i/[publicToken]`: desain sesuai paket, QR, tautan individual, rotasi token, dan RSVP yang terpisah dari kehadiran. Daftar dipaginasi agar ribuan QR tidak dibuat sekaligus.
+- `/checkin`: kamera, gambar QR, pencarian manual, kedatangan parsial, koreksi bertanda dengan alasan, idempotensi, kuota dan pencabutan sesi scanner. Koneksi internet diperlukan. Sesi perangkat terhitung aktif selama dua menit setelah transaksi terakhir.
+- `/display`, `/tv`, `/display/[sessionToken]`: kode sekali pakai 15 menit ditukar menjadi sesi layar terbatas 24 jam. Sesi dapat dicabut. Sambutan memakai antrean FIFO delapan detik dan hanya menampilkan tamu yang menyetujui tampilan publik. Polling menjadi mekanisme sinkronisasi.
+- `/vip`: pemantauan VIP, pembaruan lima detik, notifikasi internal Pro Plus dan konfirmasi penjemputan.
+- `/reports`: rekonsiliasi ledger; Free memperoleh ringkasan CSV, paket berbayar memperoleh detail CSV/XLSX.
 
-5. **Jalankan pemeriksaan kualitas kode & pengujian:**
-   ```bash
-   npm run lint
-   npm run typecheck
-   npm test
-   npm run build
-   ```
+Tidak ada pembayaran online atau WhatsApp blast otomatis. Tautan WhatsApp membuka pesan untuk dikirim manual. Katalog layanan tambahan merupakan penawaran layanan manual; pembelian add-on, souvenir counter, dan pembayaran belum terintegrasi otomatis.
 
----
+## Keamanan dan penyimpanan
 
-## Cara Upload Langsung ke GitHub Anda
+Data produksi memakai tabel PostgreSQL bersama. Mutasi dijalankan melalui RPC yang memeriksa `auth.uid()`, profil aktif, kepemilikan, dan peran. Akses tabel langsung dibatasi; pengguna tidak dapat mengubah `is_platform_admin`, lisensi, keanggotaan atau ledger melalui tabel publik. Token mentah yang diperlukan untuk mengunduh ulang undangan disimpan pada tabel privat; pencarian menggunakan hash. Jangan memberikan akses langsung ke tabel tersebut.
 
-Repositori Git lokal pada folder ini sudah diinisialisasi dan seluruh perubahan Sprint 0–1 telah di-commit. Untuk mengunggah ke akun GitHub Anda:
+Check-in mengunci baris, memeriksa kapasitas dan isi kunci idempotensi, serta mencatat audit. Ledger produksi tidak memiliki reset/penghapusan dari aplikasi. Koreksi menggunakan entri baru. Cookie tidak menyimpan salinan database. Request mutasi diverifikasi asalnya dan dibatasi 5 MB. Pesan kesalahan tidak memuat rincian koneksi database.
 
-1. Buat repository kosong baru di GitHub (misalnya `sanstech-wedding-management-system`).
-2. Jalankan perintah berikut di terminal pada folder proyek:
-   ```bash
-   git remote add origin https://github.com/USERNAME_ANDA/sanstech-wedding-management-system.git
-   git branch -M main
-   git push -u origin main
-   ```
-3. Untuk langsung dibagikan ke tim WO agar bisa diuji lewat HP/laptop, hubungkan repository GitHub tersebut ke **Vercel** (gratis), masukkan variabel `.env.local` Anda di pengaturan Vercel, dan klik **Deploy**.
+## Pemeriksaan
 
+```powershell
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+Tes integrasi menjalankan seluruh migration pada PostgreSQL sementara (PGlite) dengan schema Auth terisolasi. Ini menguji kontrak SQL, hak akses, token, impor, dan ledger tanpa menyentuh produksi. Tes Chromium menjalankan alur UI dengan **simulasi lokal**. Kedua jenis tes tidak menggantikan uji Supabase Auth/SMTP, RLS pada proyek sebenarnya, balapan transaksi dari beberapa koneksi, kamera fisik, TV, dan pilot acara nyata.
+
+Lihat `docs/DECISIONS.md` dan `docs/VERIFICATION.md` untuk keputusan serta bukti validasi terakhir. Jangan menyatakan aplikasi bebas bug berdasarkan build atau tes otomatis saja.
+
+Template GitHub Actions tersedia di `docs/workflows/ci.yml`. Pindahkan ke `.github/workflows/ci.yml` menggunakan akun/token yang memiliki izin `workflow` untuk mengaktifkannya. Kredensial sesi audit ini hanya memiliki izin `repo`, `read:org`, dan `gist`; pemeriksaan lokal tetap dijalankan secara langsung.

@@ -1,3 +1,5 @@
+import {getAppOrigin} from '@/lib/app-url';
+import { isLocalDemoEnabled } from '@/lib/config';
 import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
 import {
@@ -11,10 +13,7 @@ import { Badge, EmptyState } from '@/components/ui/primitives';
 import { hasPermission, ROLE_LABELS_ID } from '@/lib/permissions';
 import { getRoleAccessGuide } from '@/lib/team/role-guide';
 
-const APP_ORIGIN =
-  process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')
-    ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
-    : 'https://sanstech-wedding-management-system.vercel.app';
+
 
 function buildInviteWhatsAppMessage(params: {
   eventTitle: string;
@@ -28,29 +27,35 @@ function buildInviteWhatsAppMessage(params: {
     '',
     'Cara masuk (pilih salah satu):',
     `1) Klik tautan ini lalu tekan "Terima Undangan": ${params.link}`,
-    `2) Atau buka ${APP_ORIGIN}/auth/login dan masuk dengan email: ${params.email}`,
+    `2) Masuk dengan akun email penerima undangan: ${params.email}`,
     '',
     'Tautan berlaku 72 jam. Jangan bagikan tautan ini kepada orang lain.',
   ].join('\n');
 }
 
 export default async function EventTeamPage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { eventId: string };
-  searchParams?: { invited?: string; revoked?: string; error?: string };
+  params: Promise<{ eventId: string }>;
+  searchParams?: Promise<{ invited?: string; revoked?: string; error?: string }>;
 }) {
+  const APP_ORIGIN=await getAppOrigin();
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
+
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}/team`);
-  const event = getEventIfAuthorized(user.userId, params.eventId);
+  const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
   if (!event) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
-  const invites = listMemberInvitesForEvent(user.userId, event.id) ?? [];
+  if (!hasPermission(event.myEffectiveRole, 'event:manage_team')) notFound();
+
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
+  const invites = (await listMemberInvitesForEvent(user.userId, event.id)) ?? [];
   const canManageTeam = hasPermission(event.myEffectiveRole, 'event:manage_team');
 
   return (
@@ -86,23 +91,19 @@ export default async function EventTeamPage({
               1-klik dan petunjuk login sudah tersusun otomatis.
             </li>
             <li>
-              Penerima punya <strong>2 cara masuk</strong>: (a) klik tautan undangan lalu{' '}
-              <em>Terima Undangan</em>, atau (b) buka halaman Masuk dan ketik email yang diundang.
+              Penerima membuka tautan undangan, lalu masuk atau mendaftar menggunakan <strong>email
+              penerima yang sama</strong>. Setelah email diverifikasi, tekan <em>Terima Undangan</em>.
             </li>
             <li>
               Setelah masuk, penerima <strong>hanya melihat acara ini</strong> dan menu sesuai perannya
               (mis. petugas scanner hanya melihat Scanner). Anda bisa mencabut akses kapan saja.
             </li>
-            <li>
+            {isLocalDemoEnabled() && <li>
               Ingin memastikan tampilannya benar? Klik <strong>Masuk &amp; Simulasikan Peran Ini</strong>, lalu
               kembali dengan tombol <em>Kembali ke Akun Saya</em>.
-            </li>
+            </li>}
           </ol>
-          <p className="text-[11px] text-ink/65">
-            <strong>Catatan mode uji coba:</strong> saat ini data tersimpan per browser (belum terhubung database
-            Supabase). Simulasi peran dan login email undangan bekerja di browser yang sama dengan pembuat
-            undangan. Untuk anggota tim di HP/laptop lain secara nyata, sambungkan Supabase terlebih dahulu.
-          </p>
+          <p className="text-sm text-ink/65">Undangan berlaku 72 jam. Anda dapat mencabut undangan atau akses yang sudah diterima melalui tombol Cabut Akses.</p>
         </section>
 
         {searchParams?.invited && (
@@ -268,7 +269,7 @@ export default async function EventTeamPage({
                               >
                                 Kirim Akses via WhatsApp
                               </a>
-                              {canManageTeam && (
+                              {canManageTeam && isLocalDemoEnabled() && (
                                 <form action="/api/auth/simulate-member" method="POST">
                                   <input type="hidden" name="eventId" value={event.id} />
                                   <input type="hidden" name="inviteId" value={inv.id} />

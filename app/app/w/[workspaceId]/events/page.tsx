@@ -11,21 +11,24 @@ import { Badge, EmptyState } from '@/components/ui/primitives';
 import { formatEventDateId } from '@/lib/dates';
 
 export default async function WorkspaceEventsPage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { workspaceId: string };
-  searchParams?: { error?: string };
+  params: Promise<{ workspaceId: string }>;
+  searchParams?: Promise<{ error?: string }>;
 }) {
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
+
   const user = await requireAuthenticatedUser(`/app/w/${params.workspaceId}/events`);
-  const workspace = getWorkspaceIfAuthorized(user.userId, params.workspaceId);
+  const workspace = (await getWorkspaceIfAuthorized(user.userId, params.workspaceId));
 
   if (!workspace) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const events = getAuthorizedEventsForWorkspace(user.userId, workspace.id) ?? [];
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const events = (await getAuthorizedEventsForWorkspace(user.userId, workspace.id)) ?? [];
 
   return (
     <AppShell
@@ -135,7 +138,7 @@ export default async function WorkspaceEventsPage({
                 <select
                   id="planCode"
                   name="planCode"
-                  defaultValue="pro_plus"
+                  defaultValue="free"
                   className="w-full min-h-[44px] rounded-button border-2 border-gold/50 bg-ivory px-3.5 py-2 text-sm font-bold text-navy"
                 >
                   <option value="pro_plus">
@@ -148,6 +151,7 @@ export default async function WorkspaceEventsPage({
                     Free Trial / Intimate (Maks. 50 Undangan · 1 Scanner)
                   </option>
                 </select>
+                <p className="mt-2 text-sm text-ink/70">Acara baru dimulai dengan paket Free. Paket berbayar diaktifkan administrator setelah verifikasi pembayaran manual.</p>
               </div>
 
               <div className="sm:col-span-2">
@@ -202,7 +206,6 @@ export default async function WorkspaceEventsPage({
                   name="eventDate"
                   type="date"
                   required
-                  defaultValue="2026-12-20"
                   className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink"
                 />
               </div>

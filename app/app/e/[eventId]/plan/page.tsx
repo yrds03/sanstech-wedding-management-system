@@ -1,3 +1,4 @@
+import { loadPlatformPricing } from '@/lib/plans/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
@@ -13,19 +14,23 @@ import { Badge } from '@/components/ui/primitives';
 export const dynamic = 'force-dynamic';
 
 export default async function EventPlanPage({
-  params,
+  params: paramsPromise,
 }: {
-  params: { eventId: string };
+  params: Promise<{ eventId: string }>;
 }) {
+  await loadPlatformPricing();
+
+  const params = await paramsPromise;
+
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}/plan`);
-  const event = getEventIfAuthorized(user.userId, params.eventId);
+  const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
   if (!event) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
   const catalog = getPlansCatalog();
   const addOnsCatalog = getAddOnsCatalog();
   const currentPlan = catalog[event.planCode];
@@ -33,6 +38,7 @@ export default async function EventPlanPage({
   const lifecycle = evaluateEventPostLifecycle({
     eventDate: event.eventDate,
     planCode: event.planCode,
+    timezone:event.timezone,
   });
 
   return (

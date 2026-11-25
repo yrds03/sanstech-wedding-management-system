@@ -1,3 +1,4 @@
+import { routeError } from '@/lib/http';
 import { NextResponse } from 'next/server';
 import { getCurrentUserServer } from '@/lib/auth/session';
 import { createAppError, getHttpStatusForError } from '@/lib/errors';
@@ -6,8 +7,12 @@ import { PLANS_CATALOG } from '@/lib/plans';
 
 export async function GET(
   _request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  try {
+
+  const params = await context.params;
+
   const user = await getCurrentUserServer();
   if (!user) {
     return NextResponse.json(createAppError('UNAUTHORIZED'), {
@@ -15,7 +20,7 @@ export async function GET(
     });
   }
 
-  const event = getEventIfAuthorized(user.userId, context.params.id);
+  const event = (await getEventIfAuthorized(user.userId, params.id));
   if (!event) {
     // Kembalikan 404 agar tidak membocorkan keberadaan event milik tenant lain (PRD Bab 9 & TC-001)
     return NextResponse.json(createAppError('NOT_FOUND'), {
@@ -27,5 +32,7 @@ export async function GET(
     event,
     plan: PLANS_CATALOG[event.planCode],
   });
+
+  } catch (error) { return routeError(error); }
 }
 

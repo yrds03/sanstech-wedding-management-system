@@ -1,10 +1,12 @@
+import { routeError, readFormBody } from '@/lib/http';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { DEV_SESSION_COOKIE_NAME, SIMULATION_RETURN_COOKIE_NAME } from '@/lib/auth/session';
-import { redeemMemberInviteToken } from '@/lib/db/repository';
+import { acceptMemberInviteByToken } from '@/lib/db/repository';
+import { getCurrentUserServer } from '@/lib/auth/session';
 import { checkRateLimit, verifySameOriginMutation } from '@/lib/security/rate-limit';
 
 export async function POST(request: Request) {
+  try {
+
   if (!verifySameOriginMutation(request)) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Origin request tidak sah.' } }, { status: 403 });
   }
@@ -18,27 +20,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const formData = await request.formData();
+  const formData = await readFormBody(request);
   const token = String(formData.get('token') ?? '').trim();
-  const result = redeemMemberInviteToken(token);
+  const user = await getCurrentUserServer();
+  if (!user) return NextResponse.redirect(new URL(`/auth/login?next=${encodeURIComponent(`/invite/${token}`)}`, request.url),303);
+  const result = await acceptMemberInviteByToken({userId:user.userId,rawToken:token});
 
   if (!result.ok) {
     return NextResponse.redirect(
-      new URL(`/invite/${encodeURIComponent(token)}?error=${encodeURIComponent(result.error)}`, request.url),
+      new URL(`/invite/${encodeURIComponent(token)}?error=${encodeURIComponent(result.error ?? 'Undangan tidak berlaku.')}`, request.url),
       303
     );
   }
 
-  const cookieStore = cookies();
-  cookieStore.set(DEV_SESSION_COOKIE_NAME, result.userId, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7,
-  });
-  // Masuk lewat tautan undangan = sesi anggota sungguhan, bukan simulasi pemilik.
-  cookieStore.delete(SIMULATION_RETURN_COOKIE_NAME);
-
   return NextResponse.redirect(new URL(`/app/e/${result.eventId}`, request.url), 303);
+
+  } catch (error) { return routeError(error); }
 }

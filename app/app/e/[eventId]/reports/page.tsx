@@ -1,3 +1,4 @@
+import { hasPermission } from '@/lib/permissions';
 import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
 import {
@@ -13,21 +14,26 @@ import { Badge, StatCard } from '@/components/ui/primitives';
 export const dynamic = 'force-dynamic';
 
 export default async function EventReportsPage({
-  params,
+  params: paramsPromise,
 }: {
-  params: { eventId: string };
+  params: Promise<{ eventId: string }>;
 }) {
+  const params = await paramsPromise;
+
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}/reports`);
-  const event = getEventIfAuthorized(user.userId, params.eventId);
+  const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
   if (!event) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
-  const groups = listInvitationGroupsForEvent(user.userId, event.id) ?? [];
-  const ledger = listCheckinLedgerForEvent(user.userId, event.id) ?? [];
+  if (!hasPermission(event.myEffectiveRole, 'event:view_reports')) notFound();
+
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
+  const groups = (await listInvitationGroupsForEvent(user.userId, event.id)) ?? [];
+  const ledger = (await listCheckinLedgerForEvent(user.userId, event.id)) ?? [];
+  const detailedExport=event.planCode!=='free'&&hasPermission(event.myEffectiveRole,'event:import_export_guests');
 
   const noShowGroupsCount = Math.max(
     0,
@@ -58,10 +64,10 @@ export default async function EventReportsPage({
 
           <div className="flex flex-col gap-1.5 items-stretch">
             <a
-              href={`/api/events/${event.id}/reports/export`}
+              href={`/api/events/${event.id}/reports/export${detailedExport?'':'?format=csv'}`}
               className="min-h-[44px] inline-flex items-center justify-center rounded-button bg-navy border border-gold/50 px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-gold-light shadow hover:bg-navy-light transition"
             >
-              Unduh Laporan Excel (.xlsx)
+              {detailedExport?'Unduh laporan Excel (.xlsx)':'Unduh ringkasan CSV'}
             </a>
             <a
               href={`/api/events/${event.id}/reports/export?format=csv`}
@@ -126,7 +132,7 @@ export default async function EventReportsPage({
                         {g.guestCategory.toUpperCase()}
                       </Badge>
                     </td>
-                    <td className="py-3 px-3 text-xs">{g.tableLabelOptional ?? 'â€”'}</td>
+                    <td className="py-3 px-3 text-xs">{g.tableLabelOptional ?? '—'}</td>
                     <td className="py-3 px-3 tabular-nums">{g.capacity} org</td>
                     <td className="py-3 px-3 tabular-nums">{g.rsvpCount} org</td>
                     <td className="py-3 pl-3 text-right font-bold tabular-nums text-navy">
@@ -168,7 +174,7 @@ export default async function EventReportsPage({
                       <td className="py-2.5 px-3 font-bold text-navy">{item.guestDisplayName}</td>
                       <td className="py-2.5 px-3 uppercase">{item.method}</td>
                       <td className="py-2.5 px-3">{item.actorName}</td>
-                      <td className="py-2.5 px-3 text-ink/70">{item.reasonNullable ?? 'â€”'}</td>
+                      <td className="py-2.5 px-3 text-ink/70">{item.reasonNullable ?? '—'}</td>
                       <td className="py-2.5 pl-3 text-right font-bold tabular-nums">
                         {item.deltaAttendees > 0
                           ? `+${item.deltaAttendees}`

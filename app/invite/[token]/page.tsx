@@ -5,14 +5,17 @@ import { BRAND_NAME } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-export default function InviteLandingPage({
-  params,
-  searchParams,
+export default async function InviteLandingPage({
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { token: string };
-  searchParams?: { error?: string };
+  params: Promise<{ token: string }>;
+  searchParams?: Promise<{ error?: string }>;
 }) {
-  const invite = peekMemberInviteByToken(decodeURIComponent(params.token));
+  const params = await paramsPromise;
+  const searchParams = await searchParamsPromise;
+
+  const invite = (await peekMemberInviteByToken(params.token));
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-ivory px-4 py-12">
@@ -78,7 +81,7 @@ export default function InviteLandingPage({
 
                 {usable ? (
                   <form action="/api/invites/accept" method="POST">
-                    <input type="hidden" name="token" value={decodeURIComponent(params.token)} />
+                    <input type="hidden" name="token" value={params.token} />
                     <button
                       type="submit"
                       className="w-full min-h-[48px] rounded-button bg-navy border border-gold/50 px-5 py-3 text-xs font-bold uppercase tracking-widest text-gold-light hover:bg-navy-light transition"

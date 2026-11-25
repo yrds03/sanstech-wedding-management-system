@@ -1,3 +1,5 @@
+import {getAppOrigin} from '@/lib/app-url';
+import { hasPermission } from '@/lib/permissions';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
@@ -13,26 +15,33 @@ import { generateQrCodeDataUrl, generateQrCodeSvg } from '@/lib/qr/render';
 import { InvitationStudio } from '@/components/invitation/invitation-studio';
 import { DEFAULT_INVITATION_CONFIG, sanitizeInvitationConfig } from '@/lib/invitation/config';
 import { buildInvitationPath } from '@/lib/invitation/signing';
+import {Pagination,pageWindow} from '@/components/app/pagination';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EventInvitationsPage({
-  params,
-  searchParams,
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
 }: {
-  params: { eventId: string };
-  searchParams?: { rotated?: string; error?: string; design_saved?: string };
+  params: Promise<{ eventId: string }>;
+  searchParams?: Promise<{ rotated?: string; error?: string; design_saved?: string;page?:string }>;
 }) {
+  const params = await paramsPromise;
+  const appOrigin=await getAppOrigin();
+  const searchParams = await searchParamsPromise;
+
   const user = await requireAuthenticatedUser(`/app/e/${params.eventId}/invitations`);
-  const event = getEventIfAuthorized(user.userId, params.eventId);
+  const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
   if (!event) {
     notFound();
   }
 
-  const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
-  const groups = listInvitationGroupsForEvent(user.userId, event.id) ?? [];
+  if (!hasPermission(event.myEffectiveRole, 'event:manage_guests')) notFound();
+
+  const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
+  const groups = (await listInvitationGroupsForEvent(user.userId, event.id)) ?? [];
   const invitationConfig = sanitizeInvitationConfig(
     event.invitationConfig ?? DEFAULT_INVITATION_CONFIG,
     event.planCode
@@ -41,8 +50,9 @@ export default async function EventInvitationsPage({
     event.myEffectiveRole
   );
 
+  const pagination=pageWindow(groups.length,24,searchParams?.page);
   const groupsWithQr = await Promise.all(
-    groups.map(async (g) => ({
+    groups.slice(pagination.start,pagination.end).map(async (g) => ({
       ...g,
       qrSvg: await generateQrCodeSvg(g.qrTokenPreview),
       qrPngUrl: await generateQrCodeDataUrl(g.qrTokenPreview),
@@ -135,7 +145,7 @@ export default async function EventInvitationsPage({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {groupsWithQr.map((g) => {
-                    const waMessage = `Kepada Yth. ${g.displayName},\n\nTanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara pernikahan ${event.brideName} & ${event.groomName} (${event.eventDate} di ${event.venue}).\n\nSilakan buka tautan undangan khusus Anda, lihat Kartu QR Check-in, & konfirmasi kehadiran (RSVP) melalui:\nhttps://sanstech-wedding-management-system.vercel.app${g.invitationPath}`;
+                    const waMessage = `Kepada Yth. ${g.displayName},\n\nTanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara pernikahan ${event.brideName} & ${event.groomName} (${event.eventDate} di ${event.venue}).\n\nSilakan buka tautan undangan khusus Anda, lihat Kartu QR Check-in, & konfirmasi kehadiran (RSVP) melalui:\n${appOrigin}${g.invitationPath}`;
 
                     const waHref = `https://wa.me/${
                       g.phoneOptional ? g.phoneOptional.replace(/^0/, '62') : ''
@@ -214,6 +224,7 @@ export default async function EventInvitationsPage({
             </div>
           )}
         </section>
+        <Pagination {...pagination} path={`/app/e/${event.id}/invitations`}/>
       </div>
     </AppShell>
   );

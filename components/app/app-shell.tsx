@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { SIMULATION_RETURN_COOKIE_NAME } from '@/lib/auth/session';
+import {isLocalDemoEnabled} from '@/lib/config';
 import {
   BRAND_SHORT_NAME,
   EffectiveRole,
@@ -20,16 +21,15 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-export function AppShell({
+export async function AppShell({
   user,
   activeWorkspace,
-  allWorkspaces: _allWorkspaces = [],
   effectiveRole = 'workspace_owner',
   eventId,
   eventTitle,
   children,
 }: AppShellProps) {
-  const isSimulating = Boolean(cookies().get(SIMULATION_RETURN_COOKIE_NAME)?.value);
+  const isSimulating = Boolean((await cookies()).get(SIMULATION_RETURN_COOKIE_NAME)?.value);
 
   const workspaceNav = activeWorkspace
     ? [
@@ -54,7 +54,7 @@ export function AppShell({
   const eventNav = eventId
     ? [
         {
-          label: 'Ringkasan & Reset Data',
+          label: 'Ringkasan Acara',
           href: `/app/e/${eventId}`,
           show: hasPermission(effectiveRole, 'event:view_overview'),
         },
@@ -157,7 +157,7 @@ export function AppShell({
               href="/auth/login"
               className="text-ivory/80 hover:text-white underline underline-offset-4"
             >
-              Ganti Peran Uji (WO / Pengantin)
+              {isLocalDemoEnabled()?'Ganti peran uji lokal':'Masuk ke akun lain'}
             </Link>
           </div>
         </div>
@@ -165,7 +165,7 @@ export function AppShell({
 
       {/* Main Header */}
       <header className="no-print sticky top-0 z-30 border-b border-gold/25 bg-surface/95 backdrop-blur shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 min-h-16 py-3 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
               href="/app/workspaces"
@@ -295,7 +295,7 @@ export function AppShell({
           </aside>
         )}
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

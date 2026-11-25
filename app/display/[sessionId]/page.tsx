@@ -1,14 +1,18 @@
 import { getDisplayScreenState } from '@/lib/db/repository';
 import { LiveDisplayClient } from '@/components/display/live-display-client';
+import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export default function FullscreenDisplayScreen({
-  params,
+export default async function FullscreenDisplayScreen({
+  params: paramsPromise,
 }: {
-  params: { sessionId: string };
+  params: Promise<{ sessionId: string }>;
 }) {
-  const state = getDisplayScreenState(params.sessionId);
+  const params = await paramsPromise;
+
+  const state = (await getDisplayScreenState(params.sessionId));
+  if (!state) notFound();
 
   return (
     <LiveDisplayClient

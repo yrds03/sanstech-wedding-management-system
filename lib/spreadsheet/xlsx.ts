@@ -21,7 +21,6 @@ function escapeXml(value: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 }
 
@@ -181,9 +180,15 @@ function parseSharedStrings(xml: string | undefined): string[] {
 
 /** Membaca sheet pertama workbook .xlsx menjadi matriks teks. Melempar Error jika file tidak valid. */
 export function parseXlsxFirstSheet(data: Uint8Array): string[][] {
+  if(data.length>5*1024*1024)throw new Error('Ukuran file maksimal 5 MB.');
   let files: Record<string, Uint8Array>;
   try {
-    files = unzipSync(data);
+    let expanded=0;
+    files = unzipSync(data,{filter:entry=>{
+      expanded+=entry.originalSize;
+      if(entry.originalSize>10*1024*1024 || expanded>20*1024*1024)throw new Error('File terlalu besar setelah dibuka.');
+      return /^xl\/(workbook\.xml|_rels\/workbook\.xml\.rels|sharedStrings\.xml|worksheets\/[^/]+\.xml)$/.test(entry.name);
+    }});
   } catch {
     throw new Error('File Excel tidak dapat dibuka. Pastikan formatnya .xlsx (bukan .xls lama).');
   }
@@ -219,6 +224,7 @@ export function parseXlsxFirstSheet(data: Uint8Array): string[][] {
   const rowRe = /<row(?:\s[^>]*)?>([\s\S]*?)<\/row>/g;
   let rowMatch: RegExpExecArray | null;
   while ((rowMatch = rowRe.exec(sheetXml)) !== null) {
+    if(rows.length>2002)throw new Error('Maksimal 2.000 baris data per impor.');
     const rowInner = rowMatch[1] ?? "";
     const cells: string[] = [];
     const cellRe = /<c\s([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
@@ -229,6 +235,7 @@ export function parseXlsxFirstSheet(data: Uint8Array): string[][] {
       const ref = /r="([A-Z]+)\d+"/.exec(attrs);
       const type = /t="([^"]+)"/.exec(attrs)?.[1];
       const idx = ref ? columnIndex(ref[1] ?? "A") : cells.length;
+      if(idx>100)throw new Error('File berisi terlalu banyak kolom. Gunakan template impor.');
 
       let value = '';
       if (type === 's') {

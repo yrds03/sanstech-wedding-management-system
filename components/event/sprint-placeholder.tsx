@@ -21,14 +21,14 @@ export function createSprintPlaceholderPage(config: {
     params: { eventId: string };
   }) {
     const user = await requireAuthenticatedUser(`/app/e/${params.eventId}`);
-    const event = getEventIfAuthorized(user.userId, params.eventId);
+    const event = (await getEventIfAuthorized(user.userId, params.eventId));
 
     if (!event) {
       notFound();
     }
 
-    const allWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
-    const activeWorkspace = getWorkspaceIfAuthorized(user.userId, event.workspaceId);
+    const allWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+    const activeWorkspace = (await getWorkspaceIfAuthorized(user.userId, event.workspaceId));
 
     return (
       <AppShell

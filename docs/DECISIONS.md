@@ -2,6 +2,27 @@
 
 Dokumen ini mencatat keputusan arsitektur, produk, dan penyesuaian implementasi terhadap spesifikasi awal (`01_PRD_WEDDINGHUB.md`, `02_UX_FLOW_WIREFRAMES.md`, `03_BACKLOG_TEST_CASES.md`).
 
+## DEC-004: Penyimpanan dan autentikasi produksi yang sebenarnya
+
+- **Tanggal:** 25 November 2026.
+- **Temuan:** implementasi sebelumnya menganggap email/ID simulasi sebagai login, menyimpan database seluruh tenant di cookie, memulihkan acara tanpa bukti kepemilikan, menerima undangan portabel tanpa verifikasi sumber, dan membuka acara pertama untuk kode TV sembarang. Fungsi SQL check-in awal belum memeriksa aktor atau peran dan profil dapat mengubah flag admin.
+- **Keputusan:** produksi menggunakan Supabase Auth dan repository PostgreSQL melalui RPC yang memverifikasi `auth.uid()`. RLS dipertahankan dan hak akses tabel/fungsi dipersempit. Simulasi dipindahkan ke repository khusus yang ditolak pada Vercel dan `NODE_ENV=production`. Cookie tidak menjadi sumber data; tidak ada pemulihan kepemilikan berdasarkan URL.
+- **Konsekuensi:** deployment tanpa environment/migration Supabase tidak membuka dashboard atau akun uji. Data simulasi versi lama perlu diekspor dan ditinjau sebelum pemindahan; tidak diterima otomatis sebagai data produksi. Tidak ada penerapan migration produksi otomatis dari build.
+
+## DEC-005: Transaksi, token dan layar bersama
+
+- Kuota undangan dan sesi scanner ditegakkan di database. Acara baru selalu Free; pilihan paket berbayar menjadi permintaan yang menunggu verifikasi manual.
+- Check-in memakai kunci transaksi, penguncian grup, validasi kapasitas, pembandingan payload idempotensi, serta audit. Koreksi bertanda membuat entri baru. Reset ledger produksi dinonaktifkan.
+- Token publik dan QR berbeda, acak, serta dapat dirotasi. Hash dipakai untuk pencarian. Salinan token mentah untuk unduh ulang tetap berada pada tabel privat yang tidak dapat dibaca langsung oleh pengguna API.
+- Kode TV sekali pakai memiliki masa berlaku 15 menit, ditukar menjadi token sesi 24 jam dan dapat dicabut. Display memakai antrean FIFO delapan detik, filter opt-in, payload minimum dan polling. Notifikasi VIP Pro Plus mempunyai konfirmasi penjemputan dan tetap privat.
+- Impor produksi satu transaksi: baris salah, calon duplikat atau kelebihan kuota membatalkan seluruh batch. CSV mendukung kutip dan baris baru; XLSX dibatasi ukuran terkompresi, hasil ekstraksi, baris dan kolom. Pembuatan QR dipaginasi untuk menghindari respons HTML berlebihan.
+
+## DEC-006: Versi dan batas bukti pengujian
+
+- Next.js 14 yang tidak lagi didukung diganti Next.js 16.4.6, React 19, Supabase SSR terbaru, Zod 4 dan Vitest 5. API request asinkron, proxy, ESLint CLI dan konfigurasi build disesuaikan. Runtime ditetapkan Node.js 24 LTS.
+- Tes PostgreSQL sementara menjalankan migration sebenarnya dengan schema Auth terisolasi. Tes browser memakai simulasi lokal. Hasil tersebut tidak membuktikan konfigurasi, SMTP, sesi Supabase, kamera fisik, TV, beban atau konkurensi multi-koneksi pada produksi.
+- Layanan yang belum otomatis tersedia diberi penjelasan manual/Segera hadir. Tidak ada klaim pembayaran, WhatsApp blast, souvenir counter atau add-on kuota yang aktif tanpa implementasi.
+
 ## DEC-001: Penamaan Brand Publik vs Nama Teknis
 - **Tanggal:** 27 Oktober 2026
 - **Konteks:** Dokumen PRD menggunakan nama kerja `WeddingHub`, sedangkan pengguna meminta nama aplikasi **"SANSTECH Wedding Management System"** dengan tagline konsep **"Satu platform untuk mengelola perjalanan tamu, dari menerima undangan sampai pulang dari acara"**.

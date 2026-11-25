@@ -11,8 +11,8 @@ import { ROLE_LABELS_ID } from '@/lib/permissions';
 
 export default async function WorkspacesPage() {
   const user = await requireAuthenticatedUser('/app/workspaces');
-  const workspaces = getAuthorizedWorkspacesForUser(user.userId);
-  const sharedEvents = getAllAuthorizedEventsForUser(user.userId);
+  const workspaces = (await getAuthorizedWorkspacesForUser(user.userId));
+  const sharedEvents = (await getAllAuthorizedEventsForUser(user.userId));
 
   return (
     <AppShell user={user} allWorkspaces={workspaces}>

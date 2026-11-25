@@ -1,3 +1,4 @@
+import { routeError, readFormBody } from '@/lib/http';
 import { NextResponse } from 'next/server';
 import { getCurrentUserServer } from '@/lib/auth/session';
 import { createAppError, getHttpStatusForError } from '@/lib/errors';
@@ -6,8 +7,12 @@ import { verifySameOriginMutation } from '@/lib/security/rate-limit';
 
 export async function POST(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  try {
+
+  const params = await context.params;
+
   if (!verifySameOriginMutation(request)) {
     return NextResponse.json(createAppError('FORBIDDEN', 'Origin request tidak sah.'), {
       status: 403,
@@ -21,10 +26,10 @@ export async function POST(
     });
   }
 
-  const formData = await request.formData();
-  const result = updateEventInvitationConfig({
+  const formData = await readFormBody(request);
+  const result = (await updateEventInvitationConfig({
     userId: user.userId,
-    eventId: context.params.id,
+    eventId: params.id,
     rawConfig: {
       themeStyle: formData.get('themeStyle'),
       customGreeting: formData.get('customGreeting'),
@@ -35,9 +40,9 @@ export async function POST(
       closingMessage: formData.get('closingMessage'),
       whiteLabelBrandName: formData.get('whiteLabelBrandName'),
     },
-  });
+  }));
 
-  const base = `/app/e/${context.params.id}/invitations`;
+  const base = `/app/e/${params.id}/invitations`;
   if ('error' in result) {
     return NextResponse.redirect(
       new URL(`${base}?error=${encodeURIComponent(result.error)}`, request.url),
@@ -46,5 +51,7 @@ export async function POST(
   }
 
   return NextResponse.redirect(new URL(`${base}?design_saved=1`, request.url), 303);
+
+  } catch (error) { return routeError(error); }
 }
 

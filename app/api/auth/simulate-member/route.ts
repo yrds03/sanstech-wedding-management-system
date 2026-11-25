@@ -1,4 +1,7 @@
+import { routeError, readFormBody } from '@/lib/http';
 import { NextResponse } from 'next/server';
+import { isLocalDemoEnabled } from '@/lib/config';
+import { signDemoSession } from '@/lib/auth/demo-session';
 import { cookies } from 'next/headers';
 import {
   DEV_SESSION_COOKIE_NAME,
@@ -9,6 +12,9 @@ import { resolveMemberSimulationTarget } from '@/lib/db/repository';
 import { verifySameOriginMutation } from '@/lib/security/rate-limit';
 
 export async function POST(request: Request) {
+  try {
+
+  if (!isLocalDemoEnabled()) return NextResponse.json({error:{code:'NOT_FOUND',message:'Halaman tidak ditemukan.'}},{status:404});
   if (!verifySameOriginMutation(request)) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Origin request tidak sah.' } }, { status: 403 });
   }
@@ -18,15 +24,15 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL('/auth/login', request.url), 303);
   }
 
-  const formData = await request.formData();
+  const formData = await readFormBody(request);
   const eventId = String(formData.get('eventId') ?? '');
   const inviteId = String(formData.get('inviteId') ?? '');
 
-  const target = resolveMemberSimulationTarget({
+  const target = (await resolveMemberSimulationTarget({
     actorUserId: actor.userId,
     eventId,
     inviteId,
-  });
+  }));
 
   if (!target.ok) {
     return NextResponse.redirect(
@@ -35,7 +41,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const base = {
     httpOnly: true,
     sameSite: 'lax' as const,
@@ -45,10 +51,12 @@ export async function POST(request: Request) {
   };
   // Simpan akun asal hanya saat belum dalam mode simulasi (agar tidak tertimpa simulasi bertingkat).
   if (!cookieStore.get(SIMULATION_RETURN_COOKIE_NAME)?.value) {
-    cookieStore.set(SIMULATION_RETURN_COOKIE_NAME, actor.userId, base);
+    cookieStore.set(SIMULATION_RETURN_COOKIE_NAME, signDemoSession(actor.userId), base);
   }
-  cookieStore.set(DEV_SESSION_COOKIE_NAME, target.userId, base);
+  cookieStore.set(DEV_SESSION_COOKIE_NAME, signDemoSession(target.userId), base);
 
   return NextResponse.redirect(new URL(`/app/e/${target.eventId}`, request.url), 303);
+
+  } catch (error) { return routeError(error); }
 }
 

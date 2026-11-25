@@ -1,4 +1,7 @@
 # Dependencies
+/.local-data/
+.env.*
+!.env.example
 /node_modules
 /.pnp
 .pnp.js

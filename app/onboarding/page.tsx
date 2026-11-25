@@ -1,26 +1,24 @@
 import Link from 'next/link';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
 import {
-  acceptMemberInviteByToken,
   getAuthorizedWorkspacesForUser,
 } from '@/lib/db/repository';
 import { BRAND_NAME } from '@/lib/types';
+import {redirect} from 'next/navigation';
 
 export default async function OnboardingPage({
-  searchParams,
+  searchParams: searchParamsPromise,
 }: {
-  searchParams?: { invite_token?: string; error?: string };
+  searchParams?: Promise<{ invite_token?: string; error?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
+
   const user = await requireAuthenticatedUser('/onboarding');
-  const existingWorkspaces = getAuthorizedWorkspacesForUser(user.userId);
+  const existingWorkspaces = (await getAuthorizedWorkspacesForUser(user.userId));
   const idempotencyKey = crypto.randomUUID();
 
-  let inviteResult: { ok: boolean; eventId?: string | null; error?: string } | null = null;
   if (searchParams?.invite_token) {
-    inviteResult = acceptMemberInviteByToken({
-      userId: user.userId,
-      rawToken: searchParams.invite_token,
-    });
+    redirect(`/invite/${encodeURIComponent(searchParams.invite_token)}`);
   }
 
   return (
@@ -44,32 +42,6 @@ export default async function OnboardingPage({
             </Link>
           )}
         </div>
-
-        {inviteResult && (
-          <div
-            className={`mt-4 rounded-button p-4 text-xs border ${
-              inviteResult.ok
-                ? 'border-success/30 bg-success/10 text-success'
-                : 'border-danger/30 bg-danger/10 text-danger'
-            }`}
-          >
-            {inviteResult.ok ? (
-              <div className="flex items-center justify-between">
-                <span>Undangan tim berhasil diverifikasi dan diaktifkan!</span>
-                {inviteResult.eventId && (
-                  <Link
-                    href={`/app/e/${inviteResult.eventId}`}
-                    className="font-bold underline ml-2"
-                  >
-                    Buka Acara Sekarang &rarr;
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <span>{inviteResult.error}</span>
-            )}
-          </div>
-        )}
 
         {searchParams?.error && (
           <div
