@@ -10,9 +10,9 @@ import {encryptSnapshot, decryptSnapshot} from '@/lib/drive/snapshot-crypto.mjs'
 const secret = 'integration-test-only-32-characters-secret';
 function gateway() {
  let contents = JSON.stringify({version: 0, data: null, checksum: null, format: 'sanstech-pglite-0.6.0-aes256gcm-gzip-v2'});
- let locked = false, editable = false;
+ let locked = false, editable = false, publiclyReadable = false;
  let statusRows: unknown[][] = [];
- const file = {getSharingPermission: () => editable ? 'edit' : 'view', getEditors: () => [], getViewers: () => [],
+ const file = {getSharingAccess: () => publiclyReadable ? 'anyone' : 'private', getSharingPermission: () => editable ? 'edit' : 'view', getEditors: () => [], getViewers: () => [],
   getBlob: () => {expect(locked).toBe(true); return {getDataAsString: () => contents};}, setContent: (text: string) => {expect(locked).toBe(true); contents = text;}};
  const context = vm.createContext({Date, JSON, Number, PropertiesService: {getScriptProperties: () => ({getProperty: (key: string) => key === 'DRIVE_GATEWAY_SECRET' ? secret : 'file-id'})},
   LockService: {getScriptLock: () => ({tryLock: () => {locked = true; return true;}, hasLock: () => locked, releaseLock: () => {locked = false;}})},
@@ -27,7 +27,7 @@ function gateway() {
   const message = JSON.stringify({timestamp: Date.now(), nonce: randomUUID(), ...payload});
   const signature = createHmac('sha256', key).update(message).digest('hex');
   return context.doPost({postData: {contents: JSON.stringify({message, signature})}});
- }, setEditable: () => {editable = true;}, corrupt: () => {contents = '{}';}, isLocked: () => locked, status: () => statusRows};
+ }, setEditable: () => {editable = true;}, setPubliclyReadable: () => {publiclyReadable = true;}, corrupt: () => {contents = '{}';}, isLocked: () => locked, status: () => statusRows};
 }
 
 beforeEach(() => {
@@ -62,6 +62,7 @@ describe('Google Drive gateway security', () => {
   server.corrupt(); expect(server.request({action: 'read'}).ok).toBe(false);
   const shared = gateway(); shared.setEditable(); expect(shared.request({action: 'read'}).ok).toBe(false);
   expect(shared.isLocked()).toBe(false);
+  const publicFile = gateway(); publicFile.setPubliclyReadable(); expect(publicFile.request({action: 'read'}).ok).toBe(false);
  });
  it('never follows a redirect to a third-party host', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, {status: 302, headers: {location: 'https://evil.example/collect'}})));

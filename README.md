@@ -18,7 +18,7 @@ Mode simulasi ditolak pada build produksi/Vercel. Tanpa konfigurasi layanan, das
 
 ## Penyimpanan Google Drive
 
-Atas pilihan pemilik, Supabase telah diganti dengan **Google Drive + Apps Script**, dan login memakai identitas Google. Spreadsheet yang diberikan memuat panel status dan delapan tab header beserta kamus kolom; data utama aplikasi berada dalam snapshot terenkripsi di folder Drive. Tidak ada data pribadi tamu yang disalin otomatis ke sheet publik. File database dienkripsi AES-256-GCM; petugas masuk dengan Google tanpa meminta akses Drive pribadi mereka.
+Atas pilihan pemilik, Supabase telah diganti dengan **Google Drive + Apps Script**, dan login memakai identitas Google. Spreadsheet yang diberikan memuat panel status dan delapan tab header beserta kamus kolom; data utama aplikasi berada dalam snapshot terenkripsi di folder Drive. Tidak ada data pribadi tamu yang disalin otomatis ke spreadsheet. Folder, spreadsheet dan snapshot hanya dapat diakses pemilik. File database dienkripsi AES-256-GCM; petugas masuk dengan Google tanpa meminta akses Drive pribadi mereka.
 
 Aturan transaksi PostgreSQL dijalankan oleh PGlite di server Vercel. Hasil commit disimpan sebagai snapshot gzip. Gateway Apps Script memakai HMAC, ScriptLock dan compare-and-swap versi sehingga dua proses tidak saling menimpa. Snapshot dibatasi 8 MiB base64; kuota serta latency akun Google tetap berlaku.
 

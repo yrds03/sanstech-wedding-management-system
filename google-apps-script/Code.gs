@@ -69,10 +69,11 @@ function setupAll() {
 }
 
 function assertStorageWriters_(file) {
-  if (file.getEditors().length || file.getSharingPermission() === DriveApp.Permission.EDIT) throw new Error('Storage must not allow other writers.');
+  if (file.getEditors().length || file.getViewers().length || file.getSharingAccess() !== DriveApp.Access.PRIVATE ||
+    file.getSharingPermission() === DriveApp.Permission.EDIT) throw new Error('Storage must be private to its owner.');
 }
 
-// The supplied spreadsheet is publicly readable. Write operational metadata only;
+// Write operational metadata only, even if the owner later shares the sheet;
 // never copy guest details, identity tokens, database bytes or secrets into it.
 function syncStatus_(snapshot) {
   try {
