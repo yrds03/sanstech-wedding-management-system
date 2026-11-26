@@ -9,10 +9,12 @@
 
 Jika ditemukan konflik, utamakan **keamanan data dan invariants** pada PRD, lalu catat keputusan pada `docs/DECISIONS.md`. Jangan menebak data rahasia atau mengaktifkan integrasi pembayaran palsu.
 
+Keputusan aktif DEC-008/009 di `docs/DECISIONS.md` mengganti pilihan layanan Supabase pada spesifikasi awal dengan Google Drive atas instruksi pemilik. Aturan akses, transaksi, privasi dan ledger tetap berlaku.
+
 ## Stack & conventions
 
 - Next.js App Router, TypeScript strict, Tailwind, shadcn/ui.
-- Supabase Auth/Postgres/RLS; migrations under `supabase/migrations/`.
+- Google OpenID Connect login; PostgreSQL/PGlite transaction rules persisted as a private Google Drive snapshot through the Apps Script HMAC/CAS gateway. Migrations under `database/migrations/`. User decision: Google Drive replaces Supabase (25 November 2026).
 - Semua user-visible copy berbahasa Indonesia, kecuali kode dan proper names.
 - Server-side auth/authz on every private action; protected private DB tables with RLS and least privilege grants.
 - Server-authoritative entitlement and quota checks (Free/Pro/Pro Plus).
@@ -20,7 +22,7 @@ Jika ditemukan konflik, utamakan **keamanan data dan invariants** pada PRD, lalu
 - No `any` without justification, no placeholders that pretend to work, no production seed/demo rows.
 - Structured errors: code + Indonesian display message, no leaking technical secrets.
 - No direct access to data from other tenants; membership verified by event and workspace.
-- Never put Supabase service role/secret into `NEXT_PUBLIC_*`, client-side code, logs or git.
+- Never put Drive gateway/OAuth secrets into `NEXT_PUBLIC_*`, client-side code, logs or git.
 - Do not write actual secrets to repository. `.env.example` documents variable names only.
 - Avoid running destructive commands or migrations against production without express permission.
 
@@ -44,7 +46,7 @@ Jika ditemukan konflik, utamakan **keamanan data dan invariants** pada PRD, lalu
 - Work in small functional increments: DB/RLS -> server APIs -> UI -> tests.
 - Keep a changelog/decision note if deviating from docs.
 - Run lint, typecheck, tests, build and report actual results; do not state PASS unless executed.
-- If local Supabase credentials unavailable, create migrations, docs, and test harness; explicitly identify tests blocked by missing environment rather than faking success.
+- If Google runtime credentials are unavailable, implement and test locally; explicitly identify cloud checks blocked by missing environment rather than faking success.
 - Report updated files, migrations, environment variables, actual working UI routes, and known issues.
 - Prioritize Sprint 0 then Sprint 1; later sprints only after gates pass.
 

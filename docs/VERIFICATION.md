@@ -1,33 +1,37 @@
-# Catatan verifikasi — 25 November 2026
+# Catatan verifikasi ? 26 November 2026
 
-## Lingkungan
+## Implementasi yang diperiksa
 
-Windows, Node.js 24.22.1, Next.js 16.4.6, React 19.3.1, Vitest 5.1.1, PGlite 0.6.0, PostgreSQL 17.12 dan Playwright 1.65.1/Chromium. Pemeriksaan lanjutan dimulai dari commit `3756507` yang telah berstatus Ready di Vercel.
+Hosting Vercel yang sudah ada dipertahankan. Backend Supabase diganti dengan Google OpenID Connect dan snapshot PostgreSQL/PGlite terenkripsi di Google Drive. Spreadsheet/folder tujuan berasal dari tautan pemilik pada 26 November 2026. Migration lama dipindahkan utuh ke `database/migrations/`.
 
-## Hasil yang dijalankan
+Lingkungan: Windows, Node.js 24.22.1, Next.js 16.4.6, React 19.3.1, PGlite 0.6.0, PostgreSQL 17.12, Vitest 5.1.1 dan Playwright 1.65.1/Chromium.
 
-- `npm test`: **51 tes lulus**, terdiri dari 30 tes unit dan 21 tes integrasi PostgreSQL sementara. Seluruh migration dimuat ke database terisolasi dengan stub schema `auth`; tidak menyentuh database produksi.
-- `npm run test:concurrency`: **5 skenario lulus** pada PostgreSQL 17.12 dengan pool koneksi terpisah: 12 scan serentak tidak melampaui kapasitas, 8 permintaan ulang menghasilkan satu ledger, RSVP tidak melampaui kapasitas saat perubahan bersamaan, kuota scanner tidak berlebih, dan 8 onboarding menghasilkan satu workspace. Tes RSVP memeriksa `pg_stat_activity` untuk memastikan dua transaksi benar-benar menunggu kunci yang sama.
-- Tes database meliputi profil, onboarding idempoten, isolasi tenant, aktor palsu, paket Free, token terpisah/rotasi, RSVP, kapasitas, konflik idempotensi, undangan dan pencabutan anggota, koreksi bertanda, impor atomik, kuota undangan/scanner, sesi scanner dicabut, pairing TV sekali pakai, pencabutan layar, antrean FIFO, notifikasi VIP dan larangan eskalasi hak akses tabel.
-- `npx playwright test`: **4 skenario lulus**. Alur acara–tamu–undangan di browser lain–RSVP–check-in–ekspor Excel; ukuran layar 390×844 pada dashboard/tamu/undangan/laporan dan halaman publik; penolakan CSRF dan cookie identitas palsu; tujuan undangan dipertahankan saat membuka pendaftaran. Backend browser menggunakan simulasi lokal, bukan Supabase produksi.
-- Pengujian tambahan memverifikasi penolakan tabel otorisasi sementara yang mencoba meniru `profiles`, pembatasan isi respons petugas, pembatalan sambutan setelah koreksi menjadi nol, penolakan aktor null, dan tautan peta yang memakai halaman pengalih.
-- `npm audit`: **0 kerentanan yang dilaporkan**, setelah pembaruan dependensi. Audit awal melaporkan 18 kerentanan. Ini bukan jaminan bahwa tidak ada kerentanan yang belum diketahui.
-- `npm run lint`, `npm run typecheck`, dan `npm run build`: **selesai dengan kode keluar 0** pada sumber final. Build memakai webpack dan menghasilkan seluruh route aplikasi. Tes awal yang mewajibkan kode TV sembarang membuka acara telah diubah agar mengharuskan penolakan.
-- Artefak `next start` diperiksa terpisah pada port 3130: tujuh halaman publik HTTP 200, status database tanpa konfigurasi HTTP 503 dengan `setup_required`, dashboard mengarah ke `/status`, endpoint akun simulasi HTTP 404, dan mutasi lintas origin HTTP 403. Header produksi tidak memuat `unsafe-eval` atau `X-Powered-By`.
-- Pratinjau ponsel diperiksa secara visual. Header publik yang melebar, token QR panjang, dan batas lebar area konten diperbaiki. Daftar tamu dan generator QR dipaginasi.
+## Pemeriksaan yang sudah lulus
 
-## Gangguan pengujian yang diselesaikan
+- `npm test`: **65 tes lulus**. Meliputi 37 tes unit dan 28 tes integrasi. SQL memakai migration yang sama dengan runtime; identitas dan sesi Google untuk pengujian dibuat secara terisolasi.
+- `npm run test:concurrency`: **5 skenario lulus** pada PostgreSQL 17.12 dengan koneksi independen: scan serentak tidak melampaui kapasitas, retry menghasilkan satu ledger, RSVP konsisten saat kapasitas berubah, kuota scanner tidak berlebih dan onboarding idempoten. Isi migration SQL tidak berubah ketika dipindahkan direktorinya.
+- `npm run test:drive`: **3 skenario browser lulus pada build produksi**. Rangkaian OAuth state/nonce/PKCE dan verifikasi JWT, profil baru non-admin, pembuatan workspace/acara/tamu, undangan pada konteks browser lain, RSVP, check-in parsial, laporan CSV Free, logout serta penolakan cookie lama. Dua skenario tambahan menolak nonce dan tanda tangan identitas palsu. Layanan Google ditiru oleh preload lokal eksplisit; aplikasi produksi dan SQL berjalan tanpa mode demo. Preload pengujian tidak diimpor aplikasi dan menolak berjalan pada Vercel.
+- `npm run test:e2e`: **4 skenario lulus**. Alur acara?tamu?undangan?RSVP?check-in?ekspor XLSX dengan simulasi lokal, tampilan ponsel 390?844, penolakan CSRF/cookie palsu dan tujuan undangan pada pendaftaran. Hasil ini melengkapi tiga skenario build produksi di atas.
+- Integrasi Drive memulihkan snapshot ke dua mesin terpisah dan menjalankan konflik compare-and-swap. Pengujian memeriksa isolasi tenant, aktor palsu, batas kapasitas, data publik yang disaring, pencabutan sesi, respons commit yang hilang dan pengulangan dengan kunci idempotensi yang sama, serta penolakan versi mundur berulang setelah cache dibuang.
+- Pengujian gateway menjalankan `google-apps-script/Code.gs` di VM dengan layanan Google tiruan. Yang diperiksa meliputi kunci penulisan, versi, HMAC, timestamp, checksum, penolakan penulis eksternal, dan metadata spreadsheet tanpa isi snapshot. Enkripsi AES-256-GCM diuji terhadap perubahan byte serta kunci yang salah. Redirect gateway ke host lain ditolak.
+- `npm run lint`, `npm run typecheck`, dan `npm run build`: selesai dengan kode keluar 0. Build mencakup pemeriksaan TypeScript. Artefak server ditelusuri: SQL dan aset WASM/data PGlite tercakup, sehingga tidak bergantung pada unduhan aset dari browser.
+- `npm audit`: **0 kerentanan yang dilaporkan** pada dependensi terpasang. SDK Supabase dihapus; PGlite menjadi dependensi runtime dan `jose` memverifikasi ID token.
 
-Vitest/esbuild dan Chromium memerlukan izin proses di luar sandbox Windows. Versi lama tes gagal dimulai dengan `spawn EPERM`; pengujian dijalankan ulang dengan izin eksekusi yang sesuai. Pengujian browser awal juga terganggu kompilasi pertama dan restart server saat file konfigurasi diperbarui; batas penantian navigasi disesuaikan dan pengujian diulang setelah sumber stabil. Tidak ada hasil gagal tersebut yang dihitung sebagai lulus.
+## Masalah yang ditemukan dan diperbaiki selama pemeriksaan
 
-## Status layanan dan konfigurasi akun
+- Snapshot awal mesin database melampaui batas 4 MiB. Pengujian pada transport produksi menemukannya saat login; batas menjadi 8 MiB base64, di bawah batas `File.setContent` Google 10 MB. Pengujian database saja dengan penyimpanan tanpa batas tidak dipakai sebagai bukti transport siap.
+- Pembuatan ulang mesin database pada setiap operasi menambah waktu dan alokasi memori. Mesin boleh dipakai ulang setelah versi/checksum Drive diperiksa kembali. Konflik atau respons commit yang hilang membuang cache; operasi tidak memakai salinan lama sebagai cadangan ketika Drive gagal.
+- Intersepsi Playwright awal tidak menangkap tujuan redirect karena routing hanya berlaku pada permintaan pertama dalam rantai. Fixture diperbaiki untuk memeriksa respons POST sesungguhnya lalu membuka tujuan Google secara terpisah.
+- Tes ekspor build produksi semula meminta format default Excel pada paket Free dan ditolak HTTP 403 sesuai aturan. Tes kini menggunakan tautan CSV yang benar dari halaman laporan; hak paket tidak dilonggarkan.
 
-- **Hosting:** proyek Vercel sudah ada dan deployment terkonfirmasi Ready. Tidak perlu membuat hosting baru.
-- **Database:** pengguna mengonfirmasi proyek Supabase belum dibuat. `/api/health` pada domain produksi mengembalikan HTTP 503 dengan `database: not_configured`. Langkah akun yang diperlukan adalah mengaktifkan koneksi Supabase agar proyek dapat dibuat, seluruh migration diterapkan, dan URL/anon key diatur di Vercel. Rahasia tidak ditulis ke Git atau diminta melalui chat.
-- **Transaksi database:** telah diuji dengan beberapa koneksi pada PostgreSQL 17.12, termasuk penguncian yang benar-benar tumpang tindih. Pengujian ini memakai identitas JWT terisolasi; autentikasi cloud dan pengiriman email baru bisa dihubungkan setelah proyek Supabase tersedia.
-- **Perangkat:** antarmuka diuji melalui Chromium desktop/ponsel, QR dibuat dengan pustaka QR sebenarnya, dan alur layar diuji melalui database. Kamera dan TV fisik tidak terhubung ke sesi pengerjaan.
-- **Aktivasi layanan:** sesudah koneksi akun tersedia, buat proyek, terapkan migration, atur callback Auth/SMTP, deploy environment, pastikan `/api/health` HTTP 200, lalu jalankan alur lintas akun pada domain produksi. Dashboard tetap menolak akun simulasi selama konfigurasi belum selesai.
-- GitHub Actions belum diaktifkan: token Git sesi ini tidak mempunyai scope `workflow`. Template tersedia di `docs/workflows/ci.yml` untuk akun berizin. Pemeriksaan di atas dijalankan lokal secara langsung.
-- Pembayaran, pengiriman WhatsApp, pemesanan layanan tambahan, counter souvenir dan tambahan kuota otomatis tidak dihubungkan ke layanan eksternal. UI dan panduan menjelaskan batas tersebut.
+## Kondisi akun dan layanan
 
-Status penyerahan mengikuti hasil tes dan kondisi layanan yang tercatat. Bagian konfigurasi akun diperbarui setelah respons layanan berhasil diverifikasi.
+- Kedua tautan Google yang diberikan dapat dibaca tanpa login. Ekspor CSV spreadsheet kosong saat diperiksa. Belum ada perubahan pada isi atau izin berbagi layanan Google dari sesi pengerjaan ini.
+- `Code.gs` sudah memakai ID folder dan spreadsheet tersebut sebagai tujuan default. `setupStorage` membuat berkas terenkripsi dan tab `SANSTECH_Status` tanpa menghapus tab lain. Tab status hanya berisi metadata operasional; data tamu, identitas, token, sesi dan key tidak disalin ke sheet yang terbaca publik.
+- Konektor Google Drive belum terpasang/terhubung; tidak ada sesi kontrol Google Sheets, kredensial Apps Script CLI, Google Cloud ADC, Vercel CLI atau `.env.local` yang terkonfigurasi di lingkungan ini. Tautan berbagi tidak menyediakan izin OAuth untuk menerbitkan Apps Script atau mengatur environment Vercel.
+- Aktivasi akun memerlukan deployment Apps Script `/exec`, secret gateway, kunci enkripsi tersendiri, OAuth Web client Google dan environment proyek Vercel. Langkah persisnya tersedia pada `docs/GOOGLE_DRIVE_SETUP.md`. Rahasia tidak diminta melalui chat atau disimpan dalam Git.
+- Login Google cloud, akses tulis ke Drive/Sheets dari akun pemilik, latensi/kuota Google sebenarnya dan alur lintas akun pada domain produksi diperiksa setelah konfigurasi runtime tersedia. Kamera/TV fisik tidak terhubung ke sesi pengerjaan.
+- GitHub Actions belum diaktifkan karena token Git tidak mempunyai scope `workflow`; template berada di `docs/workflows/ci.yml`. Pemeriksaan di atas dijalankan secara langsung. Integrasi GitHub?Vercel yang sudah ada dipakai untuk deployment.
+- Pembayaran, WhatsApp blast dan aktivasi add-on otomatis tetap tidak dihubungkan ke penyedia eksternal. UI menjelaskan pemesanan/konfirmasi manual.
+
+Kondisi produksi terakhir diverifikasi melalui domain dan status commit Vercel ketika pembaruan dikirim. Konfigurasi yang belum tersedia memberi HTTP 503 pada pemeriksaan layanan dan menolak akses data, tanpa akun simulasi produksi.

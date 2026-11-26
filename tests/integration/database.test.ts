@@ -20,9 +20,9 @@ beforeAll(async()=>{
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     GRANT USAGE ON SCHEMA auth TO anon,authenticated;
     GRANT EXECUTE ON FUNCTION auth.uid() TO anon,authenticated;`);
-  for(const f of fs.readdirSync('supabase/migrations').sort()) {
+  for(const f of fs.readdirSync('database/migrations').sort()) {
     // pgcrypto extension is not needed by these migrations; UUID and SHA256 are PostgreSQL built-ins.
-    await db.exec(fs.readFileSync(`supabase/migrations/${f}`,'utf8').replace('CREATE EXTENSION IF NOT EXISTS "pgcrypto";',''));
+    await db.exec(fs.readFileSync(`database/migrations/${f}`,'utf8').replace('CREATE EXTENSION IF NOT EXISTS "pgcrypto";',''));
   }
   await db.query("INSERT INTO auth.users(id,email,email_confirmed_at) VALUES($1,'owner@example.com',NOW()),($2,'other@example.com',NOW()),($3,'staff@example.com',NOW())",[owner,other,staff]);
   await actor(owner);

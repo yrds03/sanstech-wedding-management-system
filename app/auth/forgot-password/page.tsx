@@ -1,49 +1,9 @@
 import Link from 'next/link';
-import { BRAND_NAME } from '@/lib/types';
-
-export default async function ForgotPasswordPage({searchParams}:{searchParams:Promise<{error?:string;notice?:string}>}) {
-  const query = await searchParams;
-  return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-ivory px-4 py-12">
-      <div className="w-full max-w-md rounded-card border border-border bg-surface p-6 sm:p-8 shadow-sm">
-        <h1 className="text-xl font-bold text-navy">Atur Ulang Kata Sandi</h1>
-        <p className="mt-1 text-xs text-ink/65 leading-relaxed">
-          Masukkan alamat email yang terdaftar pada {BRAND_NAME}. Jika akun ditemukan, tautan
-          pemulihan kata sandi akan dikirimkan ke email Anda.
-        </p>
-
-        {query.error && <p role="alert" className="mt-4 text-sm text-danger">{query.error}</p>}
-        {query.notice && <p role="status" className="mt-4 text-sm text-success">{query.notice}</p>}
-        <form action="/api/auth/forgot-password" method="POST" className="mt-6 space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-xs font-semibold text-navy mb-1.5">
-              Alamat Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              placeholder="nama@contoh.com"
-              className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full min-h-[44px] rounded-button bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-light transition"
-          >
-            Kirim Tautan Pemulihan
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <Link href="/auth/login" className="text-xs font-semibold text-navy hover:underline">
-            &larr; Kembali ke halaman Masuk
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
+export default function AccountHelpPage(){
+ return <main className="min-h-screen grid place-items-center p-6"><div className="w-full max-w-md rounded-card border bg-surface p-8 space-y-5">
+  <h1 className="text-2xl font-bold text-navy">Bantuan akses akun Google</h1>
+  <p>Aplikasi menggunakan akun Google. Pemulihan kata sandi dan verifikasi akun dilakukan melalui Google.</p>
+  <a className="block rounded bg-navy p-3 text-center text-white" href="https://accounts.google.com/signin/recovery" rel="noreferrer">Pulihkan akun Google</a>
+  <Link className="block underline" href="/auth/login">Kembali ke halaman masuk</Link>
+ </div></main>;
 }
-

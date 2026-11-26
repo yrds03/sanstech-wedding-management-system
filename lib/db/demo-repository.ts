@@ -1672,7 +1672,7 @@ export function acceptMemberInviteByToken(params: {
 }
 
 // ----------------------------------------------------------------------------
-// AKSES ANGGOTA TIM / PASANGAN YANG DIUNDANG (mode sandbox tanpa Supabase)
+// AKSES ANGGOTA TIM / PASANGAN YANG DIUNDANG (mode simulasi lokal)
 // ----------------------------------------------------------------------------
 
 function isInviteUsable(inv: InternalInviteRecord): boolean {

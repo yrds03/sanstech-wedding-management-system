@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/types';
 
+export const maxDuration = 60;
+
 export const metadata: Metadata = {
   title: {
     default: `${BRAND_NAME} — Sistem Undangan & Penerimaan Tamu Pernikahan`,

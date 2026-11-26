@@ -12,32 +12,31 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Isi URL dan anon key Supabase untuk menggunakan autentikasi/database sebenarnya. Untuk **simulasi lokal saja**, kosongkan kedua nilai tersebut dan isi `LOCAL_DEMO_MODE=true`. Akun pengujian tampil di `/auth/login`. Data simulasi disimpan di `.local-data/` yang diabaikan Git. Jangan masukkan data pribadi sungguhan ke simulasi.
+Isi environment Google Drive dan OAuth sesuai `.env.example` serta [panduan pemasangan](docs/GOOGLE_DRIVE_SETUP.md). Untuk simulasi lokal saja, kosongkan konfigurasi gateway dan isi `LOCAL_DEMO_MODE=true`. Akun pengujian tampil di `/auth/login`; data lokal berada di `.local-data/` yang diabaikan Git.
 
-Mode simulasi selalu ditolak pada build produksi/Vercel. Tanpa konfigurasi database, halaman publik tetap terbuka; dashboard menampilkan status penyiapan dan API privat mengembalikan 503. Tidak ada login produksi dengan email saja atau kata sandi bawaan.
+Mode simulasi ditolak pada build produksi/Vercel. Tanpa konfigurasi layanan, dashboard menampilkan status penyiapan dan API data mengembalikan 503. Tidak ada data contoh, login email saja, atau kata sandi bawaan pada produksi.
 
-## Menyiapkan Supabase
+## Penyimpanan Google Drive
 
-1. Pilih proyek Supabase yang benar, ambil cadangan, dan tinjau migration sebelum penerapan.
-2. Terapkan seluruh file `supabase/migrations/` sesuai urutan nama. Repository produksi ditambahkan pada `20261125000002_production_repository.sql`; penguncian lintas operasi dan perlindungan tambahan ada pada `20261125000003_transaction_and_privacy_guards.sql`. Jangan menjalankan ulang migration awal pada database yang sudah memilikinya.
-3. Atur `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY` pada environment lokal/Vercel. Runtime aplikasi tidak membutuhkan service-role key.
-4. Pada Supabase Auth, atur Site URL dan Redirect URLs untuk `https://DOMAIN/auth/callback`, termasuk hostname preview yang memang digunakan. Aktifkan konfirmasi email. Konfigurasikan SMTP untuk pengiriman email produksi dan uji email verifikasi serta pemulihan dari kotak masuk sebenarnya.
-5. Daftar melalui aplikasi. Profil dibuat oleh trigger database. Akun baru selalu non-admin. Penetapan administrator dilakukan oleh pemilik database melalui konsol SQL terkontrol untuk **UUID akun yang sudah diverifikasi**, bukan dari browser.
-6. Acara baru selalu memiliki paket Free. Permintaan paket berbayar dicatat; aktivasi dilakukan administrator setelah verifikasi pembayaran manual melalui `/admin`.
+Atas pilihan pemilik, Supabase telah diganti dengan **Google Drive + Apps Script**, dan login memakai **Google OpenID Connect**. Spreadsheet yang diberikan menjadi panel status commit tanpa data pribadi tamu. Database terenkripsi berada pada folder Drive yang diberikan. File database dienkripsi AES-256-GCM pada Drive pemilik; petugas masuk dengan Google tanpa meminta akses Drive pribadi mereka.
 
-Versi lama menggunakan data simulasi cookie/memori sementara. Data tersebut tidak otomatis menjadi data Supabase. Ekspor dan tinjau data lama sebelum pemindahan; aplikasi tidak menerima cookie lama sebagai sumber data atau identitas.
+Aturan transaksi PostgreSQL dijalankan oleh PGlite di server Vercel. Hasil commit disimpan sebagai snapshot gzip. Gateway Apps Script memakai HMAC, ScriptLock dan compare-and-swap versi sehingga dua proses tidak saling menimpa. Snapshot dibatasi 8 MiB base64; kuota serta latency akun Google tetap berlaku.
+
+Kode gateway/manifest ada di `google-apps-script/`. Skema SQL yang diuji dipertahankan di `database/migrations/`, bersama bootstrap identitas/sesi Drive. Migration dijalankan pada salinan server dan disimpan bersama commit berikutnya. Rahasia dan database tidak dikirim ke browser atau dicatat di Git.
+
+Panduan lengkap: [docs/GOOGLE_DRIVE_SETUP.md](docs/GOOGLE_DRIVE_SETUP.md). Di dalamnya terdapat pemasangan Apps Script, OAuth Google, environment Vercel, pengujian akun, pemberian admin, batas penyimpanan dan pemulihan.
 
 ## GitHub dan Vercel
 
 Repository: https://github.com/yrds03/sanstech-wedding-management-system
 
-Proyek Vercel yang terdeteksi: `yrds/sanstech-wedding-management-system`. Push ke `main` memicu integrasi deployment yang sudah terpasang. Gunakan Node.js 24, perintah instalasi `npm ci`, build `npm run build`, serta environment Supabase untuk target Production dan Preview yang digunakan. `NEXT_PUBLIC_APP_URL` boleh kosong agar tautan menggunakan hostname Vercel; isi origin HTTPS jika memakai domain sendiri.
+Proyek Vercel: `yrds/sanstech-wedding-management-system`. Push ke `main` memicu deployment yang sudah terpasang. Gunakan Node.js 24, instalasi `npm ci`, build `npm run build`. Isi `DRIVE_GATEWAY_URL`, `DRIVE_GATEWAY_SECRET`, `DRIVE_ENCRYPTION_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` dan `NEXT_PUBLIC_APP_URL` pada environment target. Setelah mengganti environment, redeploy.
 
-Perubahan skema **tidak dijalankan otomatis** saat deployment. Publikasi kode saja tidak membuktikan layanan Supabase/SMTP sudah dikonfigurasi. Uji staging, periksa hasil CI dan deployment, lalu jalankan uji lintas perangkat pada domain produksi.
+Publikasi kode tidak otomatis membuat file di akun Google, menerbitkan Apps Script atau membuat OAuth client. `/api/health` memberi status koneksi sebenarnya. Preview yang mengubah data harus memakai penyimpanan pengujian terpisah.
 
 ## Alur yang tersedia
 
-- `/auth/register`, `/auth/login`, `/auth/forgot-password`, `/auth/reset-password`: Supabase Auth dan callback verifikasi.
+- `/auth/register`, `/auth/login`, `/auth/callback`: login Google dengan state/nonce/PKCE dan sesi yang dapat dicabut. Halaman bantuan akun mengarahkan pemulihan ke Google.
 - `/onboarding`, `/app/workspaces`, `/app/w/[workspaceId]/events`: workspace dan pembuatan acara.
 - `/app/e/[eventId]/settings`, `/team`, `/plan`: detail acara, undangan anggota berbatas waktu, pencabutan akses, dan paket.
 - `/guests`: input/edit tamu, privasi layar, pencarian, impor CSV/XLSX dengan pratinjau, validasi, deteksi calon duplikat, serta transaksi impor menyeluruh.
@@ -51,7 +50,7 @@ Tidak ada pembayaran online atau WhatsApp blast otomatis. Tautan WhatsApp membuk
 
 ## Keamanan dan penyimpanan
 
-Data produksi memakai tabel PostgreSQL bersama. Mutasi dijalankan melalui RPC yang memeriksa `auth.uid()`, profil aktif, kepemilikan, dan peran. Akses tabel langsung dibatasi; pengguna tidak dapat mengubah `is_platform_admin`, lisensi, keanggotaan atau ledger melalui tabel publik. Token mentah yang diperlukan untuk mengunduh ulang undangan disimpan pada tabel privat; pencarian menggunakan hash. Jangan memberikan akses langsung ke tabel tersebut.
+Data produksi berada dalam snapshot database terenkripsi di Google Drive. Mutasi dijalankan melalui RPC yang memeriksa `auth.uid()`, profil aktif, kepemilikan, dan peran. Akses tabel langsung dibatasi; pengguna tidak dapat mengubah `is_platform_admin`, lisensi, keanggotaan atau ledger melalui tabel publik. Token mentah yang diperlukan untuk mengunduh ulang undangan disimpan pada tabel privat; pencarian menggunakan hash. Jangan memberikan akses langsung ke tabel tersebut.
 
 Check-in mengunci baris, memeriksa kapasitas dan isi kunci idempotensi, serta mencatat audit. Ledger produksi tidak memiliki reset/penghapusan dari aplikasi. Koreksi menggunakan entri baru. Cookie tidak menyimpan salinan database. Request mutasi diverifikasi asalnya dan dibatasi 5 MB. Pesan kesalahan tidak memuat rincian koneksi database.
 
@@ -63,11 +62,12 @@ npm run typecheck
 npm test
 npm run build
 npx playwright install chromium
+npm run test:drive
 npm run test:e2e
 npm run test:concurrency
 ```
 
-Tes integrasi menjalankan seluruh migration pada PostgreSQL sementara (PGlite) dengan schema Auth terisolasi. `test:concurrency` menjalankan PostgreSQL 17 sebenarnya di loopback dengan beberapa koneksi untuk menguji scan, idempotensi, perubahan kapasitas/RSVP, kuota scanner dan onboarding serentak. Data pengujian berada di `test-results/` yang diabaikan Git. Tes Chromium menjalankan alur UI dengan **simulasi lokal**. Koneksi Auth/SMTP cloud serta kamera dan TV fisik dicatat sesuai layanan/perangkat yang tersedia.
+Tes integrasi menjalankan seluruh migration pada PostgreSQL sementara (PGlite) dengan schema Auth terisolasi. `test:concurrency` menjalankan PostgreSQL 17 sebenarnya di loopback dengan beberapa koneksi untuk menguji scan, idempotensi, perubahan kapasitas/RSVP, kuota scanner dan onboarding serentak. Data pengujian berada di `test-results/` yang diabaikan Git. Tes Drive memulihkan snapshot sungguhan ke mesin database terpisah, menjalankan konflik CAS, pencabutan sesi dan kehilangan respons commit. Tes gateway menjalankan kode Apps Script dengan layanan Google tiruan. Tes Chromium alur acara memakai **simulasi lokal**; tes browser OAuth memeriksa alur redirect dengan konfigurasi uji. Login Google cloud, Drive/Apps Script sebenarnya, kamera dan TV fisik dicatat sesuai layanan/perangkat yang tersedia.
 
 Lihat `docs/DECISIONS.md` dan `docs/VERIFICATION.md` untuk keputusan, hasil validasi, serta status koneksi layanan terakhir.
 

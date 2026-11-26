@@ -1,22 +1,14 @@
 import * as demo from './demo-repository';
 import { isLocalDemoEnabled } from '@/lib/config';
-import { isSupabaseConfigured } from './supabase-browser';
-import { createSupabaseServerClient } from './supabase-server';
+import {isDriveConfigured} from '@/lib/drive/config';
+import {repositoryRpc} from './rpc';
 
 type Operation = { [K in keyof typeof demo]: (typeof demo)[K] extends (...args: never[]) => unknown ? K : never }[keyof typeof demo];
 
 function operation<K extends Operation>(name: K) {
   type F = Extract<(typeof demo)[K], (...args: never[]) => unknown>;
   return async (...args: Parameters<F>): Promise<ReturnType<F>> => {
-    if (isSupabaseConfigured()) {
-      const db = await createSupabaseServerClient();
-      const { data, error } = await db.rpc('wms_repository', { p_action: name, p_args: args });
-      if (error) {
-        console.error('repository_operation_failed', { operation: name, code: error.code });
-        throw new Error('Data tidak dapat diproses. Coba lagi atau hubungi pengelola aplikasi.');
-      }
-      return data as ReturnType<F>;
-    }
+    if (isDriveConfigured()) return repositoryRpc<ReturnType<F>>(name, args);
     if (!isLocalDemoEnabled()) throw new Error('Layanan database belum dikonfigurasi.');
     const fn = demo[name] as (...params: Parameters<F>) => ReturnType<F>;
     return fn(...args);
@@ -57,12 +49,7 @@ export const listAuditLogsForEvent = operation('listAuditLogsForEvent');
 export const resetAllDataToZero = operation('resetAllDataToZero');
 
 export async function importInvitationGroups(input: {userId:string;eventId:string;rows:Array<Omit<Parameters<typeof demo.addInvitationGroupToEvent>[0],'userId'|'eventId'>>}):Promise<{ok:boolean;error?:string;importedCount?:number}> {
-  if(isSupabaseConfigured()) {
-    const db=await createSupabaseServerClient();
-    const {data,error}=await db.rpc('wms_repository',{p_action:'importInvitationGroups',p_args:[input]});
-    if(error) return {ok:false,error:'Impor dibatalkan. Periksa seluruh data dan coba lagi.'};
-    return data;
-  }
+  if(isDriveConfigured()) return repositoryRpc<{ok:boolean;error?:string;importedCount?:number}>('importInvitationGroups',[input]);
   if(!isLocalDemoEnabled()) return {ok:false,error:'Layanan database belum tersedia.'};
   const event=demo.getEventIfAuthorized(input.userId,input.eventId);
   if(!event || event.planCode==='free') return {ok:false,error:'Impor tersedia pada paket Pro dan Pro Plus.'};

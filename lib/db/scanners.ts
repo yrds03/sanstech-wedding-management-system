@@ -1,12 +1,11 @@
-import {createSupabaseServerClient} from './supabase-server';
-import {isSupabaseConfigured} from './supabase-browser';
+import {isDriveConfigured} from '@/lib/drive/config';
+import {repositoryRpc} from './rpc';
 export interface ScannerSession {id:string;actorName:string;lastSeenAt:string;revoked:boolean;active:boolean}
 export async function listScannerSessions(userId:string,eventId:string):Promise<ScannerSession[]>{
- if(!isSupabaseConfigured())return [];
- const db=await createSupabaseServerClient();const{data,error}=await db.rpc('wms_repository',{p_action:'listScannerSessions',p_args:[{userId,eventId}]});
- if(error)throw new Error('Sesi scanner belum dapat dimuat.');return data;
+ if(!isDriveConfigured())return [];
+ return repositoryRpc('listScannerSessions',[{userId,eventId}]);
 }
 export async function revokeScannerSession(userId:string,eventId:string,sessionId:string):Promise<boolean>{
- if(!isSupabaseConfigured())return false;
- const db=await createSupabaseServerClient();const{data,error}=await db.rpc('wms_repository',{p_action:'revokeScannerSession',p_args:[{userId,eventId,sessionId}]});return !error && data?.ok===true;
+ if(!isDriveConfigured())return false;
+ return (await repositoryRpc<{ok:boolean}>('revokeScannerSession',[{userId,eventId,sessionId}])).ok===true;
 }

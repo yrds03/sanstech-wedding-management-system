@@ -33,7 +33,7 @@ beforeAll(async()=>{
   CREATE TABLE auth.users(id uuid PRIMARY KEY,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb DEFAULT '{}');
   CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
   GRANT USAGE ON SCHEMA auth TO anon,authenticated;GRANT EXECUTE ON FUNCTION auth.uid() TO anon,authenticated;`);
- for(const file of fs.readdirSync('supabase/migrations').sort())await client.query(fs.readFileSync(path.join('supabase/migrations',file),'utf8'));
+ for(const file of fs.readdirSync('database/migrations').sort())await client.query(fs.readFileSync(path.join('database/migrations',file),'utf8'));
  await client.query("INSERT INTO auth.users(id,email,email_confirmed_at) VALUES($1,'owner@example.com',NOW()),($2,'other@example.com',NOW())",[owner,other]);
  await client.query("INSERT INTO workspaces(id,type,name,slug,owner_user_id) VALUES($1,'wo','Workspace Konkurensi','konkurensi',$2)",[workspaceId,owner]);
  await client.query("INSERT INTO workspace_memberships(workspace_id,user_id,role) VALUES($1,$2,'owner')",[workspaceId,owner]);await client.end();

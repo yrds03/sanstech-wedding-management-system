@@ -1,121 +1,20 @@
 import Link from 'next/link';
-import { BRAND_NAME } from '@/lib/types';
+import {BRAND_NAME} from '@/lib/types';
 import {safeRedirectPath} from '@/lib/config';
-
+import {isApplicationConfigured} from '@/lib/drive/config';
 export default async function RegisterPage({searchParams}:{searchParams:Promise<{error?:string;next?:string}>}) {
-  const query = await searchParams;
-  const next=safeRedirectPath(query.next,'/onboarding');
-  return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-ivory px-4 py-12">
-      <div className="w-full max-w-md rounded-card border border-border bg-surface p-6 sm:p-8 shadow-sm">
-        <div className="text-center">
-          <Link
-            href="/"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-button bg-navy text-gold-light font-serif text-xl font-bold"
-          >
-            S
-          </Link>
-          <h1 className="mt-4 text-xl font-bold text-navy">Buat Akun Baru</h1>
-          <p className="mt-1 text-xs text-ink/60">
-            Mulai gunakan {BRAND_NAME} sebagai Wedding Organizer atau Calon Pengantin
-          </p>
-        </div>
-
-        {query.error && <p role="alert" className="mt-4 text-sm text-danger">{query.error}</p>}
-        <form action="/api/auth/register" method="POST" className="mt-6 space-y-4">
-          <input type="hidden" name="redirectTo" value={next}/>
-
-          <div>
-            <label htmlFor="displayName" className="block text-xs font-semibold text-navy mb-1.5">
-              Nama Lengkap / Nama Tim WO
-            </label>
-            <input
-              id="displayName"
-              name="displayName"
-              type="text"
-              required
-              minLength={2}
-              placeholder="Contoh: Raka Pratama / SANSTECH Organizer"
-              className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink focus:bg-surface"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="email" className="block text-xs font-semibold text-navy mb-1.5">
-              Alamat Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              placeholder="nama@contoh.com"
-              className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink focus:bg-surface"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-xs font-semibold text-navy mb-1.5">
-              Kata Sandi (Minimal 8 Karakter)
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              placeholder="••••••••"
-              className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink focus:bg-surface"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="confirmPassword"
-              className="block text-xs font-semibold text-navy mb-1.5"
-            >
-              Konfirmasi Kata Sandi
-            </label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              required
-              minLength={8}
-              placeholder="••••••••"
-              className="w-full min-h-[44px] rounded-button border border-border bg-ivory/50 px-3.5 py-2 text-sm text-ink focus:bg-surface"
-            />
-          </div>
-
-          <label className="flex items-start gap-2.5 text-xs text-ink/75 cursor-pointer">
-            <input
-              type="checkbox"
-              name="acceptTerms"
-              required
-              className="mt-0.5 h-4 w-4 rounded border-border text-navy"
-            />
-            <span>
-              Saya menyetujui Kebijakan Privasi dan Ketentuan Pelindungan Data Pribadi tamu sesuai
-              UU No. 27 Tahun 2022.
-            </span>
-          </label>
-
-          <button
-            type="submit"
-            className="w-full min-h-[44px] rounded-button bg-navy px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-light transition"
-          >
-            Daftar &amp; Lanjut Pilih Peran
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-xs text-ink/70">
-          Sudah punya akun?{' '}
-          <Link href="/auth/login" className="font-semibold text-navy hover:underline">
-            Masuk di sini
-          </Link>
-        </p>
-      </div>
-    </div>
-  );
+ const query=await searchParams;
+ const next=safeRedirectPath(query.next,'/onboarding');
+ const configured=isApplicationConfigured();
+ return <main className="min-h-screen flex items-center justify-center bg-ivory px-4 py-12"><div className="w-full max-w-md rounded-card border bg-surface p-6 sm:p-8 shadow-sm">
+  <h1 className="text-xl font-bold text-navy">Buat Akun Baru</h1><p className="mt-2 text-sm text-ink/70">Mulai gunakan {BRAND_NAME} dengan akun Google Anda.</p>
+  {query.error&&<p role="alert" className="mt-4 text-sm text-danger">{query.error}</p>}
+  <form action="/api/auth/register" method="POST" className="mt-6 space-y-4"><input type="hidden" name="redirectTo" value={next}/>
+   <p className="text-sm">Nama dan alamat email diperoleh dari akun Google yang Anda pilih. Peran dan workspace dipilih setelah masuk.</p>
+   <p className="text-xs text-ink/65">Dengan melanjutkan, Anda menyetujui ketentuan penggunaan dan pelindungan data pribadi tamu.</p>
+   <button type="submit" disabled={!configured} className="w-full min-h-[44px] rounded-button bg-navy px-4 py-3 text-sm font-semibold text-white hover:bg-navy-light disabled:opacity-50">Daftar dengan Google</button>
+  </form>
+  {!configured&&<p role="status" className="mt-4 text-sm text-ink/75">Pendaftaran Google sedang disiapkan oleh pengelola.</p>}
+  <p className="mt-6 text-sm">Sudah punya akun? <Link href={`/auth/login?next=${encodeURIComponent(next)}`} className="font-semibold underline">Masuk di sini</Link></p>
+ </div></main>;
 }
-

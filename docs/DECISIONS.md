@@ -2,6 +2,24 @@
 
 Dokumen ini mencatat keputusan arsitektur, produk, dan penyesuaian implementasi terhadap spesifikasi awal (`01_PRD_WEDDINGHUB.md`, `02_UX_FLOW_WIREFRAMES.md`, `03_BACKLOG_TEST_CASES.md`).
 
+## DEC-009: Tujuan Drive/Sheets pengguna dan enkripsi snapshot
+
+- **Tanggal:** 26 November 2026. Pengguna memberikan spreadsheet `1uGUbw8vMLeZrbIWxiHZ7BWEde5n55cDmxRTY9B4rYBA` dan folder `1GcHlIs-dL1ZbRMaZNHcDeYByHeeoFzP7`. Keduanya terbaca melalui tautan tanpa login; ekspor CSV spreadsheet masih kosong saat diperiksa.
+- Snapshot di folder tersebut memakai AES-256-GCM dengan kunci 32 byte terpisah yang hanya berada di server. GCM memverifikasi integritas sebelum pemulihan. Secret gateway dapat diputar tanpa mengubah kunci enkripsi. Akses penulis eksternal pada file/folder database ditolak; izin berbagi pengguna tidak diubah otomatis.
+- Spreadsheet dipakai sebagai panel `SANSTECH_Status`: status koneksi, versi commit, waktu, ukuran, dan metode penyimpanan. Data tamu, identitas, sesi, token, database dan key tidak ditulis ke sheet yang terbaca publik. Tab lain tidak ditimpa.
+- Kegagalan pembaruan panel tidak membatalkan check-in yang sudah committed. Nomor versi authoritative tetap berada dalam berkas terenkripsi di Drive, diperiksa di bawah ScriptLock. Mesin database boleh dipakai ulang hanya setelah nomor versi dan checksum Drive diperiksa lagi; konflik atau respons commit yang hilang membuang cache lokal.
+- Tes pada build produksi menemukan snapshot awal lebih besar dari batas 4 MiB sebelumnya. Batas dinaikkan menjadi 8 MiB base64, masih di bawah batas `DriveApp.File.setContent` 10 MB. Tes melalui transport sebenarnya menjaga batas ini, sehingga tes database tidak hanya memakai penyimpanan tiruan tanpa batas ukuran.
+
+## DEC-008: Google Drive menggantikan Supabase atas instruksi pengguna
+
+- **Tanggal:** 25 November 2026. Keputusan ini menggantikan ketergantungan layanan Supabase pada DEC-004/007; aturan ledger dan akses tetap berlaku.
+- PostgreSQL/PGlite 0.6.0 menjalankan SQL yang sama di server. Snapshot gzip disimpan pada satu berkas privat Google Drive melalui Apps Script. ScriptLock dan compare-and-swap versi melindungi penulisan antarproses; perubahan yang kalah diulang dari versi baru.
+- Identitas memakai Google OpenID Connect: state/nonce/PKCE, verifikasi tanda tangan ID token, issuer, audience dan email terverifikasi. Sesi acak disimpan sebagai hash di database, berlaku tujuh hari, dapat dicabut. Akun baru non-admin; tidak ada seed produksi atau login email saja.
+- Tidak ada Supabase SDK, Auth, URL atau key pada runtime. Nama schema `auth` dan kontrak `wms_repository` dipertahankan sebagai batas internal SQL, bukan layanan Supabase. Histori migration lama dipindah utuh ke `database/migrations/`.
+- Vercel tetap menjadi hosting. Google Sheets tidak wajib. Koneksi plugin Google Drive bukan kredensial runtime; Apps Script dan OAuth memerlukan konfigurasi akun Google pemilik.
+- Batas snapshot aplikasi adalah 8 MiB base64. Satu berkas menserialkan semua penulisan; kuota dan latency akun Google harus diukur pada deployment sebenarnya. Respons sukses check-in menunggu konfirmasi commit Drive, dan retry mempertahankan kunci idempotensi.
+- Panduan pemasangan, pemulihan, pembatasan akses Drive dan pemberian admin lokal tersedia di `docs/GOOGLE_DRIVE_SETUP.md`. Tidak ada backend pengganti yang dipasang diam-diam ketika file rusak atau konfigurasi belum tersedia.
+
 ## DEC-007: Penguncian lintas operasi dan pembatasan respons petugas
 
 - **Tanggal:** 25 November 2026.
