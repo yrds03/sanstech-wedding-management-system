@@ -1,7 +1,8 @@
 import {createHmac, randomBytes, createHash, timingSafeEqual} from 'node:crypto';
 import {createRemoteJWKSet, jwtVerify} from 'jose';
 import {safeRedirectPath} from '@/lib/config';
-import {isApplicationConfigured} from '@/lib/drive/config';
+import {isApplicationConfigured, isGoogleScriptAuthConfigured} from '@/lib/drive/config';
+import {DriveSnapshotStore} from '@/lib/drive/transport';
 import {RequestError} from '@/lib/http';
 
 interface GoogleFlow {state: string; nonce: string; verifier: string; next: string; issuedAt: number}
@@ -31,6 +32,12 @@ export function readGoogleFlow(cookie: string | undefined, state: string | null)
 
 export function googleAuthorizationUrl(flow: GoogleFlow, callback: string): string {
   if (!isApplicationConfigured()) throw new RequestError(503, 'SETUP_REQUIRED', 'Layanan Google belum dikonfigurasi oleh pengelola.');
+  if (isGoogleScriptAuthConfigured()) {
+    const url = new URL(process.env.GOOGLE_AUTH_SCRIPT_URL!);
+    url.search = new URLSearchParams({state: flow.state, nonce: flow.nonce,
+      challenge: createHash('sha256').update(flow.verifier).digest('base64url')}).toString();
+    return url.href;
+  }
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.search = new URLSearchParams({client_id: process.env.GOOGLE_CLIENT_ID!, redirect_uri: callback, response_type: 'code',
     scope: 'openid email profile', state: flow.state, nonce: flow.nonce,
@@ -39,17 +46,31 @@ export function googleAuthorizationUrl(flow: GoogleFlow, callback: string): stri
 }
 
 export async function exchangeGoogleCode(code: string, flow: GoogleFlow, callback: string) {
+  const scriptAuth = isGoogleScriptAuthConfigured();
+  let result: unknown;
+  let audience = process.env.GOOGLE_CLIENT_ID!;
+  if (scriptAuth) {
+    if (!/^[a-f0-9]{64}$/.test(code)) throw new Error('Invalid Google login code');
+    const exchange = await new DriveSnapshotStore().exchangeGoogleLogin(code, flow.state, flow.nonce, flow.verifier);
+    // This metadata arrives from the HMAC-authenticated, configured script only.
+    // The broker obtains its token directly from ScriptApp, never from a caller.
+    if (exchange.scriptId !== process.env.GOOGLE_AUTH_SCRIPT_ID || typeof exchange.audience !== 'string' ||
+      !/^[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(exchange.audience)) throw new Error('Invalid Google identity broker');
+    audience = exchange.audience;
+    result = exchange;
+  } else {
   const response = await fetch('https://oauth2.googleapis.com/token', {method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'}, cache: 'no-store', signal: AbortSignal.timeout(10_000),
     body: new URLSearchParams({grant_type: 'authorization_code', code, client_id: process.env.GOOGLE_CLIENT_ID!,
       client_secret: process.env.GOOGLE_CLIENT_SECRET!, redirect_uri: callback, code_verifier: flow.verifier})});
   if (!response.ok) throw new Error('Google code exchange failed');
-  const result: unknown = await response.json();
+  result = await response.json();
+  }
   if (!result || typeof result !== 'object' || !('id_token' in result) || typeof result.id_token !== 'string') throw new Error('Missing Google identity token');
   const {payload} = await jwtVerify(result.id_token, keys, {issuer: ['https://accounts.google.com', 'accounts.google.com'],
-    audience: process.env.GOOGLE_CLIENT_ID!, algorithms: ['RS256'], requiredClaims: ['sub', 'email', 'email_verified', 'nonce', 'exp', 'iat']});
-  if (payload.nonce !== flow.nonce || payload.email_verified !== true || typeof payload.email !== 'string' ||
+    audience, algorithms: ['RS256'], requiredClaims: ['sub', 'email', 'email_verified', 'exp', 'iat', ...(!scriptAuth ? ['nonce'] : [])]});
+  if ((!scriptAuth && payload.nonce !== flow.nonce) || payload.email_verified !== true || typeof payload.email !== 'string' ||
     !payload.sub || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email) || payload.email.length > 320 ||
-    (payload.azp !== undefined && payload.azp !== process.env.GOOGLE_CLIENT_ID)) throw new Error('Invalid Google identity');
+    (payload.azp !== undefined && payload.azp !== audience)) throw new Error('Invalid Google identity');
   return {sub: payload.sub, email: payload.email.toLowerCase(), name: typeof payload.name === 'string' && payload.name.trim().length >= 2 ? payload.name.trim().slice(0, 80) : 'Pengguna SANSTECH'};
 }

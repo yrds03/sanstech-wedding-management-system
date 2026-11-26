@@ -20,6 +20,14 @@ Dokumen ini mencatat keputusan arsitektur, produk, dan penyesuaian implementasi 
 - Batas snapshot aplikasi adalah 8 MiB base64. Satu berkas menserialkan semua penulisan; kuota dan latency akun Google harus diukur pada deployment sebenarnya. Respons sukses check-in menunggu konfirmasi commit Drive, dan retry mempertahankan kunci idempotensi.
 - Panduan pemasangan, pemulihan, pembatasan akses Drive dan pemberian admin lokal tersedia di `docs/GOOGLE_DRIVE_SETUP.md`. Tidak ada backend pengganti yang dipasang diam-diam ketika file rusak atau konfigurasi belum tersedia.
 
+## DEC-010: Header otomatis dan login melalui proyek Apps Script yang sudah ada
+
+- **Tanggal:** 26 November 2026. Pemilik menyediakan ID editor dan meminta proyek yang sama digunakan. Proyek bound spreadsheet dipertahankan; akses editor publik pada Sheet/folder ditutup dan diverifikasi menjadi pembaca sebelum penyediaan secret.
+- Delapan tab header beserta kamus kolom dibuat dengan preflight konflik dan tanpa menghapus tab/baris lain. Tab ini adalah templat; transaksi tetap tersimpan pada snapshot Drive terenkripsi, bukan salinan data pribadi di Sheet publik.
+- Login dapat menggunakan deployment kedua di proyek yang sama dengan eksekusi `USER_ACCESSING`, hanya scope identitas. Versi storage mempertahankan eksekusi pemilik dan URL yang diberikan. Mode deployment melarang operasi storage pada endpoint login serta penerbitan identitas dari endpoint pemilik.
+- Identitas berasal langsung dari `ScriptApp.getIdentityToken`, bukan dari input pengguna. Kode acak sekali pakai disimpan dua menit pada ScriptCache, terikat state/nonce dan PKCE, lalu dikonsumsi di bawah ScriptLock melalui HMAC gateway. Node memeriksa proyek broker dan tanda tangan token Google, issuer, audience dari record broker tepercaya, masa berlaku dan email terverifikasi. Tidak ada ID token/PII pada URL atau HTML. OIDC Web client langsung tetap didukung.
+- Tidak ada proyek Supabase/Google baru atau layanan berbayar yang dibuat. Pemasangan secret dilakukan terpisah secara privat setelah izin yang diperlukan tersedia. Token CLI dan konfigurasi lokal berada di file yang diabaikan Git/lint.
+
 ## DEC-007: Penguncian lintas operasi dan pembatasan respons petugas
 
 - **Tanggal:** 25 November 2026.

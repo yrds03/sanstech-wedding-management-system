@@ -2,6 +2,20 @@
 
 Hosting tetap memakai proyek Vercel `yrds/sanstech-wedding-management-system`. Supabase tidak digunakan. Penyimpanan berupa satu berkas database terkompresi dan terenkripsi AES-256-GCM di Google Drive pemilik aplikasi; Google Sheets tidak diperlukan.
 
+## Proyek yang sudah dibuat pemilik
+
+Proyek [SANSTECH WMS Storage](https://script.google.com/home/projects/1GXuukCXTddTxxRyVuWf2jTIBHTN9auiF5Wn1snyUBHFuHVSHkpQz_I4u/edit) dipakai sesuai instruksi pemilik. Proyek ini terikat pada spreadsheet yang diberikan; jangan membuat proyek pengganti. Identitas deployment tersimpan di `google-apps-script/deployment.json`, tanpa secret.
+
+Pada 26 November 2026, delapan tab header dan kamus kolom sudah dibuat langsung. Fungsi `setupSpreadsheetHeaders` dapat diulang: memeriksa konflik header sebelum perubahan dan mempertahankan baris data serta tab lain. Tab tersebut adalah templat kolom; penyimpanan transaksi tetap snapshot terenkripsi di Drive. Akses publik spreadsheet dan folder sudah diubah dari editor menjadi pembaca, diverifikasi melalui metadata Drive. Jangan menambah editor lain pada spreadsheet yang terikat ke script karena editor juga dapat mengakses kode dan Script Properties.
+
+Login Google memakai deployment kedua **pada proyek yang sama**, dengan `auth-manifest.json`, `USER_ACCESSING` dan hanya scope `openid`, email, profil. Pada versi login, ubah konstanta `WMS_DEPLOYMENT_MODE` menjadi `google_login`. Sertakan `Auth.gs` dan `Code.gs`. Deployment storage menggunakan mode `storage`, manifest Drive/Sheets, dan eksekusi pemilik; URL `/exec` yang diberikan pemilik dipertahankan. Jangan menambahkan izin Drive/Sheets pada deployment login.
+
+Isi `GOOGLE_AUTH_SCRIPT_URL` dengan URL deployment login dan `GOOGLE_AUTH_SCRIPT_ID` dengan ID proyek. Mode ini menggantikan keperluan membuat OAuth Web client secara manual. `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` tetap tersedia untuk pemasangan OIDC langsung jika kedua variabel mode Apps Script dikosongkan. `node scripts/prepare-drive.mjs` menyiapkan penunjuk deployment dan kunci enkripsi lokal yang belum ada tanpa menampilkan secret; file `.env.local` diabaikan Git.
+
+Google menerbitkan token identitas bagi pengguna yang menjalankan deployment login. Token tidak dimasukkan ke HTML/URL: browser hanya menerima kode acak sekali pakai berumur 120 detik. Pertukaran memerlukan HMAC gateway, state/nonce browser, dan PKCE. ScriptCache proyek berbagi data antar-deployment; ScriptLock membuat konsumsi kode atomik. Server memeriksa ID proyek dan tanda tangan Google, issuer, audience dari record tepercaya ScriptApp, masa berlaku, email terverifikasi dan subject. Audience tidak diambil dari query/form pengguna. Persetujuan identitas Google pada login pertama tetap mengikuti halaman resmi Google.
+
+Bagian berikut mendokumentasikan pemasangan baru dan opsi OAuth langsung; bukan daftar langkah tambahan yang harus diulang pada proyek pemilik.
+
 ## 1. Pasang gateway di akun Google pemilik
 
 1. Buka https://script.google.com/home/start dengan akun pemilik dan buat proyek **standalone privat** bernama `SANSTECH WMS Storage`. Pertahankan proyek script hanya untuk pemilik. Proyek terpisah ini menjaga Script Properties dan secret dari kolaborator spreadsheet; akses spreadsheet tetap memakai ID yang sudah diisi pada kode.

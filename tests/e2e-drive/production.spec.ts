@@ -1,6 +1,7 @@
 import {test, expect, type Page} from '@playwright/test';
 const base = 'http://localhost:3131';
 async function googleFlow(page: Page, options?: {wrongNonce?: boolean; wrongSignature?: boolean; sub?: string}) {
+ const scriptAuth = process.env.WMS_TEST_GOOGLE_SCRIPT === '1';
  let authorization: URL | undefined;
  // Playwright routing applies to the first request in a redirect chain. Capture the
  // real POST response first, then visit its Google destination as a separate request.
@@ -11,11 +12,20 @@ async function googleFlow(page: Page, options?: {wrongNonce?: boolean; wrongSign
   await route.fulfill({response, status: 200, contentType: 'text/html', body: '<p>Continue to identity provider</p>'});
  });
  await page.route('https://accounts.google.com/**', async route => {await route.fulfill({contentType: 'text/html', body: '<p>Local Google identity fixture</p>'});});
+ if(scriptAuth)await page.route('https://script.google.com/**',async route => {
+  const destination=new URL(route.request().url());const fixture=new URL('http://127.0.0.1:3139/authorize');fixture.search=destination.search;
+  if(options?.sub)fixture.searchParams.set('sub',options.sub);
+  if(options?.wrongNonce)fixture.searchParams.set('wrongNonce','1');
+  if(options?.wrongSignature)fixture.searchParams.set('wrongSignature','1');
+  const result=await page.request.get(fixture.href);expect(result.ok()).toBe(true);
+  await route.fulfill({contentType:'text/html',body:await result.text()});
+ });
  await page.goto('/auth/login');
  await page.getByRole('button', {name: 'Lanjutkan dengan Google'}).click();
- await expect.poll(() => authorization?.hostname).toBe('accounts.google.com');
+ await expect.poll(() => authorization?.hostname).toBe(scriptAuth?'script.google.com':'accounts.google.com');
  expect(authorization).toBeDefined();
  await page.goto(authorization!.href);
+ if(scriptAuth){await page.getByRole('link',{name:'Lanjutkan ke SANSTECH'}).click();return;}
  const sub = options?.sub ?? 'browser-owner';
  const code = Buffer.from(JSON.stringify({sub, email: `${sub}@example.com`, nonce: options?.wrongNonce ? 'forged-nonce' : authorization!.searchParams.get('nonce'),
   challenge: authorization!.searchParams.get('code_challenge'), wrongSignature: options?.wrongSignature})).toString('base64url');

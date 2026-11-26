@@ -18,11 +18,11 @@ Mode simulasi ditolak pada build produksi/Vercel. Tanpa konfigurasi layanan, das
 
 ## Penyimpanan Google Drive
 
-Atas pilihan pemilik, Supabase telah diganti dengan **Google Drive + Apps Script**, dan login memakai **Google OpenID Connect**. Spreadsheet yang diberikan menjadi panel status commit tanpa data pribadi tamu. Database terenkripsi berada pada folder Drive yang diberikan. File database dienkripsi AES-256-GCM pada Drive pemilik; petugas masuk dengan Google tanpa meminta akses Drive pribadi mereka.
+Atas pilihan pemilik, Supabase telah diganti dengan **Google Drive + Apps Script**, dan login memakai identitas Google. Spreadsheet yang diberikan memuat panel status dan delapan tab header beserta kamus kolom; data utama aplikasi berada dalam snapshot terenkripsi di folder Drive. Tidak ada data pribadi tamu yang disalin otomatis ke sheet publik. File database dienkripsi AES-256-GCM; petugas masuk dengan Google tanpa meminta akses Drive pribadi mereka.
 
 Aturan transaksi PostgreSQL dijalankan oleh PGlite di server Vercel. Hasil commit disimpan sebagai snapshot gzip. Gateway Apps Script memakai HMAC, ScriptLock dan compare-and-swap versi sehingga dua proses tidak saling menimpa. Snapshot dibatasi 8 MiB base64; kuota serta latency akun Google tetap berlaku.
 
-Kode gateway/manifest ada di `google-apps-script/`. Skema SQL yang diuji dipertahankan di `database/migrations/`, bersama bootstrap identitas/sesi Drive. Migration dijalankan pada salinan server dan disimpan bersama commit berikutnya. Rahasia dan database tidak dikirim ke browser atau dicatat di Git.
+Kode gateway/manifest ada di `google-apps-script/`. Login dapat memakai deployment kedua pada proyek Apps Script yang sama: berjalan sebagai pengguna dengan izin identitas saja. Gateway penyimpanan tetap berjalan sebagai pemilik. Kode masuk berumur dua menit, sekali pakai, terikat state/nonce dan PKCE; server memverifikasi tanda tangan ID token Google. OAuth Web client juga tetap didukung. Skema SQL ada di `database/migrations/`; rahasia dan database tidak dikirim ke browser atau Git.
 
 Panduan lengkap: [docs/GOOGLE_DRIVE_SETUP.md](docs/GOOGLE_DRIVE_SETUP.md). Di dalamnya terdapat pemasangan Apps Script, OAuth Google, environment Vercel, pengujian akun, pemberian admin, batas penyimpanan dan pemulihan.
 

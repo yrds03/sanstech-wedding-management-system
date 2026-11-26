@@ -10,8 +10,13 @@ export function isDriveConfigured(): boolean {
 }
 
 export function isGoogleAuthConfigured(): boolean {
-  return /^[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(process.env.GOOGLE_CLIENT_ID ?? '') &&
-    Boolean(process.env.GOOGLE_CLIENT_SECRET);
+  return isGoogleScriptAuthConfigured() || (/^[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(process.env.GOOGLE_CLIENT_ID ?? '') &&
+    Boolean(process.env.GOOGLE_CLIENT_SECRET));
+}
+
+export function isGoogleScriptAuthConfigured(): boolean {
+  return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(process.env.GOOGLE_AUTH_SCRIPT_URL ?? '') &&
+    /^[A-Za-z0-9_-]{40,100}$/.test(process.env.GOOGLE_AUTH_SCRIPT_ID ?? '');
 }
 
 export function isApplicationConfigured(): boolean {

@@ -41,6 +41,10 @@ export class DriveSnapshotStore implements SnapshotStore {
     return value;
   }
 
+  async exchangeGoogleLogin(code: string, state: string, authNonce: string, verifier: string) {
+    return this.call({action: 'exchange_auth_code', code, state, authNonce, verifier});
+  }
+
   async read(): Promise<Snapshot> {
     const result = await this.call({action: 'read'});
     const snapshot = result.snapshot as Snapshot | undefined;

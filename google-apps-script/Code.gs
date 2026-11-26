@@ -6,9 +6,67 @@
  */
 var SNAPSHOT_FORMAT = 'sanstech-pglite-0.6.0-aes256gcm-gzip-v2';
 var MAX_DATA_LENGTH = 8 * 1024 * 1024;
+// The login deployment uses an immutable version with mode google_login and
+// identity-only OAuth scopes. Never run storage operations as a visiting user.
+var WMS_DEPLOYMENT_MODE = 'storage';
 // Destinations supplied by the owner. IDs are not credentials.
 var DEFAULT_FOLDER_ID = '1GcHlIs-dL1ZbRMaZNHcDeYByHeeoFzP7';
 var DEFAULT_SHEET_ID = '1uGUbw8vMLeZrbIWxiHZ7BWEde5n55cDmxRTY9B4rYBA';
+var TABLE_HEADERS = [
+  {name: 'SANSTECH_Workspace', headers: ['ID_Workspace', 'Tipe', 'Nama_Workspace', 'Slug', 'ID_Pemilik', 'Status', 'Dibuat_UTC']},
+  {name: 'SANSTECH_Acara', headers: ['ID_Acara', 'ID_Workspace', 'Judul_Acara', 'Mempelai_Wanita', 'Mempelai_Pria', 'Tanggal', 'Jam_Mulai', 'Jam_Selesai', 'Zona_Waktu', 'Tempat', 'Alamat', 'Kota', 'Status', 'Paket', 'Lisensi']},
+  {name: 'SANSTECH_Tamu', headers: ['ID_Grup', 'ID_Acara', 'Nama_Penerima', 'Tipe_Undangan', 'Kapasitas_Orang', 'Kategori', 'Meja', 'Izinkan_Tampil_TV', 'Dibuat_UTC']},
+  {name: 'SANSTECH_RSVP', headers: ['ID_Grup', 'ID_Acara', 'Status_RSVP', 'Jumlah_Orang', 'Catatan', 'Diperbarui_UTC']},
+  {name: 'SANSTECH_Checkin', headers: ['ID_Transaksi', 'ID_Acara', 'ID_Grup', 'ID_Petugas', 'Delta_Orang', 'Metode', 'Alasan_Koreksi', 'Kunci_Idempotensi', 'Dibuat_UTC']},
+  {name: 'SANSTECH_Tim', headers: ['ID_Acara', 'ID_Pengguna', 'Peran', 'Status', 'Dibuat_UTC']},
+  {name: 'SANSTECH_Audit', headers: ['ID_Audit', 'ID_Workspace', 'ID_Acara', 'ID_Pelaku', 'Aksi', 'Tipe_Entitas', 'ID_Entitas', 'Keterangan', 'Dibuat_UTC']},
+  {name: 'SANSTECH_Kamus_Kolom', headers: ['Nama_Tab', 'Urutan_Kolom', 'Nama_Kolom', 'Keterangan']}
+];
+
+function prepareSheetHeaders_(spreadsheet) {
+  // Preflight every existing header before changing any table.
+  TABLE_HEADERS.forEach(function(definition) {
+    var sheet = spreadsheet.getSheetByName(definition.name);
+    if (!sheet || sheet.getLastRow() === 0) return;
+    var existing = sheet.getRange(1, 1, 1, definition.headers.length).getDisplayValues()[0];
+    if (existing.some(function(value, i) { return value && value !== definition.headers[i]; })) {
+      throw new Error('Header tab ' + definition.name + ' berbeda. Data yang ada tidak diubah.');
+    }
+  });
+  var created = [];
+  TABLE_HEADERS.forEach(function(definition) {
+    var sheet = spreadsheet.getSheetByName(definition.name);
+    if (!sheet) { sheet = spreadsheet.insertSheet(definition.name); created.push(definition.name); }
+    sheet.getRange(1, 1, 1, definition.headers.length).setValues([definition.headers]).setFontWeight('bold').setBackground('#14283f').setFontColor('#ffffff');
+    sheet.setFrozenRows(1);
+    sheet.autoResizeColumns(1, definition.headers.length);
+  });
+  var dictionary = spreadsheet.getSheetByName('SANSTECH_Kamus_Kolom');
+  if (dictionary.getLastRow() <= 1) {
+    var rows = [];
+    TABLE_HEADERS.filter(function(d) { return d.name !== 'SANSTECH_Kamus_Kolom'; }).forEach(function(d) {
+      d.headers.forEach(function(header, index) { rows.push([d.name, index + 1, header, 'Templat kolom; data utama aplikasi tersimpan terenkripsi di Drive.']); });
+    });
+    if (rows.length) dictionary.getRange(2, 1, rows.length, 4).setValues(rows);
+  }
+  SpreadsheetApp.flush();
+  return {ok: true, created: created, tables: TABLE_HEADERS.map(function(d) { return d.name; })};
+}
+
+/** Run by the authenticated script owner; no secret is needed to create headers. */
+function setupSpreadsheetHeaders() {
+  var lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    var id = PropertiesService.getScriptProperties().getProperty('DRIVE_SHEET_ID') || DEFAULT_SHEET_ID;
+    return prepareSheetHeaders_(SpreadsheetApp.openById(id));
+  } finally { lock.releaseLock(); }
+}
+
+function setupAll() {
+  var headers = setupSpreadsheetHeaders();
+  setupStorage();
+  return headers;
+}
 
 function assertStorageWriters_(file) {
   if (file.getEditors().length || file.getSharingPermission() === DriveApp.Permission.EDIT) throw new Error('Storage must not allow other writers.');
@@ -71,11 +129,15 @@ function equal_(a, b) {
   return mismatch === 0;
 }
 function output_(value) { return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON); }
-function doGet() { return output_({ok: false, code: 'METHOD_NOT_ALLOWED'}); }
+function doGet(e) {
+  if (WMS_DEPLOYMENT_MODE === 'google_login') return googleLogin_(e);
+  return output_({ok: false, code: 'METHOD_NOT_ALLOWED'});
+}
 
 function doPost(e) {
   var lock;
   try {
+    if (WMS_DEPLOYMENT_MODE !== 'storage') return output_({ok: false, code: 'METHOD_NOT_ALLOWED'});
     if (!e || !e.postData || e.postData.contents.length > MAX_DATA_LENGTH + 2048) return output_({ok: false, code: 'INVALID_REQUEST'});
     var envelope = JSON.parse(e.postData.contents);
     var properties = PropertiesService.getScriptProperties();
@@ -86,9 +148,11 @@ function doPost(e) {
     var request = JSON.parse(envelope.message);
     if (!Number.isSafeInteger(request.timestamp) || Math.abs(Date.now() - request.timestamp) > 120000 ||
       typeof request.nonce !== 'string' || !/^[a-f0-9-]{36}$/.test(request.nonce)) return output_({ok: false, code: 'EXPIRED_REQUEST'});
-    if (request.action !== 'read' && request.action !== 'commit') return output_({ok: false, code: 'INVALID_REQUEST'});
+    if (request.action !== 'read' && request.action !== 'commit' && request.action !== 'setup_headers' && request.action !== 'exchange_auth_code') return output_({ok: false, code: 'INVALID_REQUEST'});
     lock = LockService.getScriptLock();
     if (!lock.tryLock(10000)) return output_({ok: false, code: 'BUSY'});
+    if (request.action === 'exchange_auth_code') return output_(exchangeGoogleLogin_(request));
+    if (request.action === 'setup_headers') return output_(prepareSheetHeaders_(SpreadsheetApp.openById(properties.getProperty('DRIVE_SHEET_ID') || DEFAULT_SHEET_ID)));
     var file = DriveApp.getFileById(properties.getProperty('DRIVE_FILE_ID'));
     assertStorageWriters_(file);
     var snapshot = JSON.parse(file.getBlob().getDataAsString('UTF-8'));
