@@ -1,4 +1,5 @@
 import {NextResponse} from 'next/server';
+import {MAX_REQUEST_BYTES} from './http-limits';
 export class RequestError extends Error {
   constructor(public readonly status:number,public readonly code:string,message:string){super(message);}
 }
@@ -8,7 +9,7 @@ async function boundedBody(request:Request):Promise<Uint8Array> {
   const chunks:Uint8Array[]=[];let size=0;
   try {
     while(true){const part=await reader.read();if(part.done)break;size+=part.value.length;
-      if(size>5*1024*1024){await reader.cancel();throw new RequestError(413,'PAYLOAD_TOO_LARGE','Ukuran permintaan maksimal 5 MB.');}
+      if(size>MAX_REQUEST_BYTES){await reader.cancel();throw new RequestError(413,'PAYLOAD_TOO_LARGE','Ukuran permintaan maksimal 4 MB.');}
       chunks.push(part.value);
     }
   } finally {reader.releaseLock();}

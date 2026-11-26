@@ -8,7 +8,7 @@ Lingkungan: Windows, Node.js 24.22.1, Next.js 16.4.6, React 19.3.1, PGlite 0.6.0
 
 ## Pemeriksaan yang sudah lulus
 
-- `npm test`: **65 tes lulus**. Meliputi 37 tes unit dan 28 tes integrasi. SQL memakai migration yang sama dengan runtime; identitas dan sesi Google untuk pengujian dibuat secara terisolasi.
+- `npm test`: **66 tes lulus**. Meliputi 38 tes unit dan 28 tes integrasi. SQL memakai migration yang sama dengan runtime; identitas dan sesi Google untuk pengujian dibuat secara terisolasi.
 - `npm run test:concurrency`: **5 skenario lulus** pada PostgreSQL 17.12 dengan koneksi independen: scan serentak tidak melampaui kapasitas, retry menghasilkan satu ledger, RSVP konsisten saat kapasitas berubah, kuota scanner tidak berlebih dan onboarding idempoten. Isi migration SQL tidak berubah ketika dipindahkan direktorinya.
 - `npm run test:drive`: **3 skenario browser lulus pada build produksi**. Rangkaian OAuth state/nonce/PKCE dan verifikasi JWT, profil baru non-admin, pembuatan workspace/acara/tamu, undangan pada konteks browser lain, RSVP, check-in parsial, laporan CSV Free, logout serta penolakan cookie lama. Dua skenario tambahan menolak nonce dan tanda tangan identitas palsu. Layanan Google ditiru oleh preload lokal eksplisit; aplikasi produksi dan SQL berjalan tanpa mode demo. Preload pengujian tidak diimpor aplikasi dan menolak berjalan pada Vercel.
 - `npm run test:e2e`: **4 skenario lulus**. Alur acara?tamu?undangan?RSVP?check-in?ekspor XLSX dengan simulasi lokal, tampilan ponsel 390?844, penolakan CSRF/cookie palsu dan tujuan undangan pada pendaftaran. Hasil ini melengkapi tiga skenario build produksi di atas.
@@ -23,6 +23,8 @@ Lingkungan: Windows, Node.js 24.22.1, Next.js 16.4.6, React 19.3.1, PGlite 0.6.0
 - Pembuatan ulang mesin database pada setiap operasi menambah waktu dan alokasi memori. Mesin boleh dipakai ulang setelah versi/checksum Drive diperiksa kembali. Konflik atau respons commit yang hilang membuang cache; operasi tidak memakai salinan lama sebagai cadangan ketika Drive gagal.
 - Intersepsi Playwright awal tidak menangkap tujuan redirect karena routing hanya berlaku pada permintaan pertama dalam rantai. Fixture diperbaiki untuk memeriksa respons POST sesungguhnya lalu membuka tujuan Google secara terpisah.
 - Tes ekspor build produksi semula meminta format default Excel pada paket Free dan ditolak HTTP 403 sesuai aturan. Tes kini menggunakan tautan CSV yang benar dari halaman laporan; hak paket tidak dilonggarkan.
+
+- Permintaan masuk dibatasi 4 MiB, di bawah batas platform Vercel 4,5 MB. Pratinjau impor menghitung ukuran formulir setelah pengodean Unicode dan normalisasi baris, lalu menolak pengiriman terlalu besar. Snapshot Drive 8 MiB dikirim antarlayanan dan tidak menjadi payload dari browser.
 
 ## Kondisi akun dan layanan
 

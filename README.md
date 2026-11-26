@@ -52,7 +52,7 @@ Tidak ada pembayaran online atau WhatsApp blast otomatis. Tautan WhatsApp membuk
 
 Data produksi berada dalam snapshot database terenkripsi di Google Drive. Mutasi dijalankan melalui RPC yang memeriksa `auth.uid()`, profil aktif, kepemilikan, dan peran. Akses tabel langsung dibatasi; pengguna tidak dapat mengubah `is_platform_admin`, lisensi, keanggotaan atau ledger melalui tabel publik. Token mentah yang diperlukan untuk mengunduh ulang undangan disimpan pada tabel privat; pencarian menggunakan hash. Jangan memberikan akses langsung ke tabel tersebut.
 
-Check-in mengunci baris, memeriksa kapasitas dan isi kunci idempotensi, serta mencatat audit. Ledger produksi tidak memiliki reset/penghapusan dari aplikasi. Koreksi menggunakan entri baru. Cookie tidak menyimpan salinan database. Request mutasi diverifikasi asalnya dan dibatasi 5 MB. Pesan kesalahan tidak memuat rincian koneksi database.
+Check-in mengunci baris, memeriksa kapasitas dan isi kunci idempotensi, serta mencatat audit. Ledger produksi tidak memiliki reset/penghapusan dari aplikasi. Koreksi menggunakan entri baru. Cookie tidak menyimpan salinan database. Request mutasi diverifikasi asalnya dan dibatasi 4 MB. Pesan kesalahan tidak memuat rincian koneksi database.
 
 ## Pemeriksaan
 

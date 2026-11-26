@@ -5,6 +5,7 @@ import {readFormBody,readJsonBody,routeError} from '@/lib/http';
 import {readDemoSession,signDemoSession} from '@/lib/auth/demo-session';
 import {createOrUpdateEventSchema} from '@/lib/validators';
 import {parseGuestImportText,detectDelimiter} from '@/lib/spreadsheet/guest-import';
+import {encodedFormSize, MAX_REQUEST_BYTES} from '@/lib/http-limits';
 afterEach(()=>vi.unstubAllEnvs());
 describe('configuration and request boundaries',()=>{
  it('never enables demo sessions on Vercel or in production',()=>{
@@ -26,10 +27,16 @@ describe('configuration and request boundaries',()=>{
  it('returns structured errors for malformed JSON and oversized bodies',async()=>{
   await expect(readJsonBody(new Request('https://app.example/api/events',{method:'POST',body:'null'}))).rejects.toMatchObject({status:400});
   await expect(readFormBody(new Request('https://app.example/api/events',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}))).rejects.toMatchObject({status:400});
-  await expect(readJsonBody(new Request('https://app.example/api/events',{method:'POST',body:'x'.repeat(5*1024*1024+1)}))).rejects.toMatchObject({status:413});
+  await expect(readJsonBody(new Request('https://app.example/api/events',{method:'POST',body:'x'.repeat(4*1024*1024+1)}))).rejects.toMatchObject({status:413});
   vi.spyOn(console,'error').mockImplementation(()=>{});
   const error=routeError(new Error('secret-database-password'));expect(error.status).toBe(503);expect(await error.text()).not.toContain('secret-database-password');
   vi.restoreAllMocks();
+ });
+ it('counts form encoding expansion for Unicode and textarea line breaks',()=>{
+  const fields={action:'import_csv_lines',csvLines:'Keluarga 🌸\nDewi & Budi;2'};
+  const wire=new URLSearchParams({...fields,csvLines:fields.csvLines.replace('\n','\r\n')}).toString();
+  expect(encodedFormSize(fields)).toBe(new TextEncoder().encode(wire).length);
+  expect(encodedFormSize({csvLines:'🌸'.repeat(350_000)})).toBeGreaterThan(MAX_REQUEST_BYTES);
  });
  it('validates calendar dates and clock ranges',()=>{
   const base={workspaceId:'11111111-1111-4111-8111-111111111111',title:'Uji Acara',brideName:'A',groomName:'B',eventDate:'2027-02-30',startTime:'18:00',endTime:'21:00',timezone:'Asia/Jakarta',venue:'Ballroom',city:'Jakarta'};

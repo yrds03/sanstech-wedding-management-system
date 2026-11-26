@@ -4,7 +4,7 @@ Hosting tetap memakai proyek Vercel `yrds/sanstech-wedding-management-system`. S
 
 ## 1. Pasang gateway di akun Google pemilik
 
-1. Buka [spreadsheet tujuan](https://docs.google.com/spreadsheets/d/1uGUbw8vMLeZrbIWxiHZ7BWEde5n55cDmxRTY9B4rYBA/edit) dengan akun pemilik, lalu **Extensions ? Apps Script**. Beri nama proyek `SANSTECH WMS Storage`.
+1. Buka https://script.google.com/home/start dengan akun pemilik dan buat proyek **standalone privat** bernama `SANSTECH WMS Storage`. Pertahankan proyek script hanya untuk pemilik. Proyek terpisah ini menjaga Script Properties dan secret dari kolaborator spreadsheet; akses spreadsheet tetap memakai ID yang sudah diisi pada kode.
 2. Salin isi `google-apps-script/Code.gs` ke `Code.gs`.
 3. Di **Project Settings**, tampilkan `appsscript.json`, lalu salin manifest dari `google-apps-script/appsscript.json`.
 4. Buat secret acak di komputer Anda, misalnya dengan `node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex'))"`. Simpan dalam pengelola rahasia. Jangan menulisnya ke Git atau mengirimnya melalui chat.

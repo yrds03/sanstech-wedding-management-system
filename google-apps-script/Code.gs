@@ -1,4 +1,5 @@
-/* Deploy this project as a Web App, executing as its owner, accessible to Anyone.
+/* Keep this standalone script project private to its owner.
+ * Deploy as a Web App, executing as its owner, accessible to Anyone.
  * The endpoint is public; every operation requires a timestamped HMAC from Vercel.
  * Script Properties: DRIVE_GATEWAY_SECRET (>=32 random characters), DRIVE_FILE_ID.
  * Run setupStorage once from the editor before deployment. Never log the secret/data.
