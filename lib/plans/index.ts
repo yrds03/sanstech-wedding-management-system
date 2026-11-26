@@ -42,7 +42,8 @@ export interface AddOnDefinition {
   priceIdr: number;
   priceFormatted: string;
   description: string;
-   deliverableNote: string;
+  deliverableNote: string;
+  availability: 'manual_request' | 'unavailable';
 }
 
 export interface PostEventRetentionConfig {
@@ -98,11 +99,11 @@ function getPricingStore(): GlobalPricingAndRetentionStore {
   return globalPricing.__sanstechPricingStore;
 }
 
-export function getAddOnsCatalog(): AddOnDefinition[] {
+export function getAddOnsCatalog(options: {includeUnavailable?: boolean} = {}): AddOnDefinition[] {
   const store = getPricingStore();
   const p = store.addOnsPrices;
 
-  const rawList: Array<Omit<AddOnDefinition, 'priceIdr' | 'priceFormatted'>> = [
+  const rawList: Array<Omit<AddOnDefinition, 'priceIdr' | 'priceFormatted' | 'availability'>> = [
     {
       code: 'addon_extra_quota_250',
       name: 'Extra Quota +250 Grup Undangan Unik',
@@ -123,11 +124,11 @@ export function getAddOnsCatalog(): AddOnDefinition[] {
     },
     {
       code: 'addon_wa_concierge_blast',
-      name: 'Jasa Pengiriman Undangan WhatsApp Terverifikasi (500 Nomor)',
+      name: 'Pendampingan Pengiriman Undangan WhatsApp (500 Nomor)',
       category: 'Kuota & Sistem Digital',
       unitLabel: 'per 500 nomor tujuan',
       description:
-        'Layanan asistensi pengiriman tautan undangan personal & kartu QR ke daftar nomor WhatsApp tamu oleh tim admin dengan laporan status terkirim.',
+        'Pendampingan pengiriman tautan dan QR secara manual. Jadwal, penerima dan cakupan layanan perlu disepakati dengan pengelola; aplikasi tidak mengirim pesan massal otomatis.',
       deliverableNote: 'Memerlukan daftar nomor HP valid H-14 sebelum acara.',
     },
     {
@@ -195,17 +196,17 @@ export function getAddOnsCatalog(): AddOnDefinition[] {
     },
   ];
 
-  return rawList.map((item) => {
-    const comingSoon=['addon_extra_quota_250','addon_extend_retention_30d','addon_souvenir_counter_module'].includes(item.code);
+  return rawList.map((item): AddOnDefinition => {
+    const unavailable=['addon_extra_quota_250','addon_extend_retention_30d','addon_souvenir_counter_module'].includes(item.code);
     const priceIdr = p[item.code] ?? DEFAULT_ADDONS_PRICES[item.code] ?? 500000;
     return {
       ...item,
-      name:comingSoon?`Segera hadir · ${item.name}`:item.name,
-      deliverableNote:comingSoon?'Belum tersedia untuk aktivasi di aplikasi. Konfirmasikan kebutuhan Anda kepada pengelola sebelum memesan.':`${item.deliverableNote} Pemesanan dan konfirmasi layanan dilakukan manual dengan pengelola.`,
+      availability: unavailable ? 'unavailable' : 'manual_request',
+      deliverableNote: unavailable ? 'Belum tersedia dan tidak ditawarkan untuk pemesanan.' : 'Permintaan layanan diperiksa manual. Harga akhir, jadwal, ketersediaan dan pelaksanaan dikonfirmasi pengelola sebelum pembayaran.',
       priceIdr,
       priceFormatted: formatCurrencyIdr(priceIdr),
     };
-  });
+  }).filter(item => options.includeUnavailable || item.availability !== 'unavailable');
 }
 
 export function getPlansCatalog(): Record<PlanCode, PlanDefinition> {
@@ -365,7 +366,7 @@ export function evaluateEventPostLifecycle(params: {
       canMutateGuestsOrCheckin: false,
       canViewAndDownloadReport: true,
       badgeLabelId: `Masa Unduh Laporan (Sisa ${remaining} Hari)`,
-      explanationId: `Acara telah selesai ${diffDays} hari lalu. Akun pengantin/staf dalam mode Baca & Unduh Laporan selama ${remaining} hari lagi sebelum dinonaktifkan otomatis.`,
+      explanationId: `Acara selesai ${diffDays} hari lalu. Data acara hanya dapat dibaca dan laporannya diunduh selama sisa masa akses ${remaining} hari. Perubahan tamu/check-in sudah ditutup.`,
     };
   }
 
@@ -377,7 +378,7 @@ export function evaluateEventPostLifecycle(params: {
     canMutateGuestsOrCheckin: false,
     canViewAndDownloadReport: false,
     badgeLabelId: 'Masa Aktif Acara Berakhir (Nonaktif)',
-    explanationId: `Masa aktif ${graceDaysAllowed} hari pasca-acara telah berakhir. Akses pengantin & staf telah dinonaktifkan otomatis demi keamanan privasi data tamu.`,
+    explanationId: `Masa akses laporan ${graceDaysAllowed} hari setelah acara telah berakhir. Akses anggota ke acara ini dibatasi. Akun Google Anda tetap dapat digunakan untuk acara lain yang diizinkan.`,
   };
 }
 

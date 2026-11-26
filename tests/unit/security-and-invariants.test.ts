@@ -264,7 +264,7 @@ describe('SANSTECH Wedding Management System — Sprint 0 & 1 Security, RBAC & I
     expect(DEMO_USERS['user-platform-admin']?.isPlatformAdmin).toBe(true);
 
     // 3. Katalog 10 Add-Ons & update harga Add-On
-    const addOnsBefore = getAddOnsCatalog();
+    const addOnsBefore = getAddOnsCatalog({includeUnavailable:true});
     expect(addOnsBefore.length).toBeGreaterThanOrEqual(10);
     updatePlatformPricingAndRetention({
       proPriceIdr: 1490000,
@@ -272,7 +272,7 @@ describe('SANSTECH Wedding Management System — Sprint 0 & 1 Security, RBAC & I
       gracePeriodDaysAfterEvent: 14,
       addOnsPrices: { addon_extra_quota_250: 550000 },
     });
-    const addOnsAfter = getAddOnsCatalog();
+    const addOnsAfter = getAddOnsCatalog({includeUnavailable:true});
     const extraQuotaAddon = addOnsAfter.find((a) => a.code === 'addon_extra_quota_250');
     expect(extraQuotaAddon?.priceIdr).toBe(550000);
 

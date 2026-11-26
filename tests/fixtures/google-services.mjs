@@ -57,6 +57,7 @@ if (process.env.WMS_TEST_GOOGLE_SCRIPT === '1') {
 globalThis.fetch = async (input, options) => {
  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
  if (url === process.env.DRIVE_GATEWAY_URL) {
+  if (fs.existsSync('test-results/drive-timeout.marker')) throw new DOMException('Fixture upstream timeout','TimeoutError');
   const body = await new Response(options?.body ?? (input instanceof Request ? input.body : null)).text();
   context.WMS_DEPLOYMENT_MODE='storage';
   const result = context.doPost({postData: {contents: body}});

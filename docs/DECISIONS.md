@@ -2,6 +2,23 @@
 
 Dokumen ini mencatat keputusan arsitektur, produk, dan penyesuaian implementasi terhadap spesifikasi awal (`01_PRD_WEDDINGHUB.md`, `02_UX_FLOW_WIREFRAMES.md`, `03_BACKLOG_TEST_CASES.md`).
 
+## DEC-011: Audit uji coba, layanan yang tersedia dan panduan
+
+- **Tanggal:** 26 November 2026. Pemilik memastikan batas paket Free/Pro tetap dipakai; tidak ada pembukaan seluruh fitur secara gratis atau perubahan harga bisnis.
+- Katalog publik hanya menampilkan permintaan layanan manual. Extra Quota +250, perpanjangan arsip dan modul souvenir berstatus `unavailable`, tidak ditawarkan sebagai fitur aktif. Mengubah harga add-on tidak memberikan entitlement atau menambah kuota.
+- Template CSV/XLSX hanya berisi header. Ilustrasi nama dan statistik tamu contoh pada beranda dihapus. Panduan ditulis ulang mengikuti login Google serta alur aktual; akses laporan setelah acara dibedakan dari masa aktif akun.
+- Impor membersihkan isi lama ketika file baru dipilih, mengunci submit selama pembacaan/kesalahan, dan mengabaikan hasil pembacaan lama jika pilihan sudah berubah. Validasi memeriksa kapasitas wajib, izin TV, jumlah kolom, panjang isian dan sisa kuota. Free menampilkan pembatasan fitur sebelum pengguna mengunggah file.
+- Pesan operator memakai URL penuh `/tv?code=...`. Kode pairing bukan token sesi `/display/...`. Klaim tampil dalam waktu pasti dihapus. Aksi admin tidak dikenal dan identitas acara/paket tidak valid ditolak sebelum perubahan harga/lisensi.
+- `drive:audit` merupakan audit hanya-baca. Pengujian browser menonaktifkan konfigurasi cloud pada proses simulasi dan tidak memakai server lain yang mungkin membawa kredensial produksi. Fixture pengujian tetap terpisah dari data aplikasi produksi.
+- Konfigurasi cloud pengujian dinonaktifkan dengan nilai sentinel nonkosong dan pemeriksaan status sebelum skenario lokal. Ini menghindari perbedaan perlakuan environment kosong antarhost. Build produksi juga menguji timeout Google yang disengaja lalu pemulihan melalui `retry()` Next.js 16; exception DOM dinormalisasi sebelum masuk renderer server.
+
+## DEC-012: Konfirmasi snapshot yang tidak berubah
+
+- **Tanggal:** 26 November 2026. Pembacaan berulang sebelumnya mengunduh sekitar 6,4 MB walaupun versi sama.
+- Gateway tetap membaca Drive dan memeriksa akses privat, format, checksum serta versi di bawah ScriptLock. Jika versi **dan** checksum cocok dengan salinan server Vercel, respons hanya mengonfirmasi metadata. Jika berbeda, snapshot penuh dikirim kembali. Klien lama tetap menerima snapshot penuh.
+- Salinan lokal hanya digunakan setelah konfirmasi jaringan berhasil. Kegagalan jaringan, konfirmasi tidak sesuai atau versi mundur tidak memakai cache sebagai cadangan. CAS dan kunci idempotensi tetap berlaku.
+- Verifikasi Google sebenarnya pada database versi 1 menghasilkan respons penuh 6.400.939 byte dan konfirmasi 169 byte. Satu pengukuran memerlukan sekitar 6,3 detik dan 2,9 detik; ini bukti ukuran respons, bukan jaminan latency atau kapasitas acara.
+
 ## DEC-009: Tujuan Drive/Sheets pengguna dan enkripsi snapshot
 
 - **Tanggal:** 26 November 2026. Pengguna memberikan spreadsheet `1uGUbw8vMLeZrbIWxiHZ7BWEde5n55cDmxRTY9B4rYBA` dan folder `1GcHlIs-dL1ZbRMaZNHcDeYByHeeoFzP7`. Keduanya terbaca melalui tautan tanpa login; ekspor CSV spreadsheet masih kosong saat diperiksa.

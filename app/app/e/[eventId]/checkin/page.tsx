@@ -71,7 +71,7 @@ export default async function EventCheckinScannerPage({
               </Badge>
             </div>
             <h1 className="mt-2 font-serif text-2xl sm:text-3xl font-bold text-white">
-              Konsol Scanner QR &amp; Penerimaan Tamu Hari-H (S12 / S13 / S14)
+              Konsol Scanner QR &amp; Penerimaan Tamu Hari-H
             </h1>
             <p className="text-xs text-ivory/75 mt-1">
               Mendukung kedatangan keluarga bertahap (parsial), pencegahan scan ganda, pencarian
@@ -114,7 +114,7 @@ export default async function EventCheckinScannerPage({
           <section className="rounded-card border border-gold/30 bg-surface p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-serif text-xl font-bold text-navy">
-                1. Scan QR Code Tamu (S12 &amp; S13)
+                1. Scan QR Code Tamu
               </h2>
               <Badge variant="gold">Anti-Scan Ganda</Badge>
             </div>
@@ -142,7 +142,7 @@ export default async function EventCheckinScannerPage({
             {/* Daftar Cepat Klik Simulasi QR */}
             <div className="pt-2">
               <p className="text-xs font-bold text-navy mb-2">
-                Klik Cepat Pilih Tamu (Pencarian Manual S14):
+                Klik Cepat Pilih Tamu (Pencarian Manual):
               </p>
               <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
                 {groups.map((g) => (

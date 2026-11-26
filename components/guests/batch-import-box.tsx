@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { parseGuestImportText, toPreviewLine } from '@/lib/spreadsheet/guest-import';
 import { parseXlsxFirstSheet } from '@/lib/spreadsheet/xlsx';
 import {MAX_REQUEST_BYTES, encodedFormSize} from '@/lib/http-limits';
@@ -8,22 +9,32 @@ import {MAX_REQUEST_BYTES, encodedFormSize} from '@/lib/http-limits';
 interface BatchImportBoxProps {
   eventId: string;
   maxGroupsLimit: number;
+  remainingGroups: number;
+  importAllowed: boolean;
 }
 
-export function BatchImportBox({ eventId, maxGroupsLimit }: BatchImportBoxProps) {
+export function BatchImportBox({ eventId, maxGroupsLimit, remainingGroups, importAllowed }: BatchImportBoxProps) {
   const [csvLines, setCsvLines] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [isReading, setIsReading] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const uploadVersion = useRef(0);
+  useEffect(() => {setIsReady(true);}, []);
 
   const parsed = useMemo(() => parseGuestImportText(csvLines), [csvLines]);
   const requestTooLarge = useMemo(() => encodedFormSize({action: 'import_csv_lines', csvLines}) > MAX_REQUEST_BYTES, [csvLines]);
 
+  if (!importAllowed) return <div className="mt-4 space-y-3 text-sm leading-relaxed"><p>Impor CSV/Excel tersedia pada paket Pro dan Pro Plus. Pada Free, tambahkan tamu satu per satu melalui formulir di samping. Batas Free tetap {maxGroupsLimit} grup.</p><Link href={`/app/e/${eventId}/plan`} className="inline-block underline text-navy">Lihat paket acara</Link></div>;
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const version = ++uploadVersion.current;
     const file = e.target.files?.[0];
+    setCsvLines(''); setFileName(null); setFileError(null); setIsReading(false);
     if (!file) return;
     if(file.size>5*1024*1024){setFileError('Ukuran file maksimal 5 MB.');return;}
-    setFileError(null);
     setFileName(file.name);
+    setIsReading(true);
 
     const lowerName = file.name.toLowerCase();
     try {
@@ -32,21 +43,25 @@ export function BatchImportBox({ eventId, maxGroupsLimit }: BatchImportBoxProps)
         const sheetRows = parseXlsxFirstSheet(buffer).filter((r) =>
           r.some((cell) => cell.trim() !== '')
         );
-        setCsvLines(sheetRows.map((cells) => toPreviewLine(cells)).join('\n'));
+        if (version === uploadVersion.current) setCsvLines(sheetRows.map((cells) => toPreviewLine(cells)).join('\n'));
       } else if (lowerName.endsWith('.xls')) {
         setFileName(null);
         setFileError(
           'Format .xls lama tidak didukung. Di Excel pilih File > Save As > "Excel Workbook (.xlsx)" atau "CSV", lalu unggah lagi.'
         );
+      } else if (lowerName.endsWith('.csv')) {
+        const text = await file.text();
+        if (version === uploadVersion.current) setCsvLines(text);
       } else {
-        setCsvLines(await file.text());
+        setFileError('Gunakan file .xlsx atau .csv.');
       }
     } catch (err) {
+      if (version !== uploadVersion.current) return;
       setFileName(null);
       setFileError(
         err instanceof Error ? err.message : 'File tidak dapat dibaca. Coba simpan ulang sebagai .xlsx atau .csv.'
       );
-    }
+    } finally { if (version === uploadVersion.current) setIsReading(false); }
   }
 
   return (
@@ -79,20 +94,22 @@ export function BatchImportBox({ eventId, maxGroupsLimit }: BatchImportBoxProps)
         </label>
         <input
           type="file"
-          accept=".xlsx,.csv,.txt"
+          disabled={!isReady}
+          accept=".xlsx,.csv"
           onChange={(e) => void handleFileUpload(e)}
           className="block w-full text-xs text-ink file:mr-3 file:rounded-button file:border file:border-navy file:bg-navy file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-gold-light hover:file:bg-navy-light cursor-pointer"
         />
-        {fileName && !fileError && (
+        {isReading && <p role="status" className="text-sm">Sedang membaca file. Tunggu hingga pratinjau selesai.</p>}
+        {fileName && !fileError && !isReading && (
           <p className="text-[11px] font-semibold text-success">
-            ✓ File &ldquo;{fileName}&rdquo; terbaca: {parsed.rows.length} tamu siap diimpor.
+            File &ldquo;{fileName}&rdquo; terbaca: {parsed.rows.length} baris valid. Periksa pratinjau dan pesan validasi sebelum mengimpor.
           </p>
         )}
         {fileError && <p className="text-[11px] font-semibold text-danger">⚠ {fileError}</p>}
       </div>
 
       {/* Langkah 3: Pratinjau & Submit */}
-      <form action={`/api/events/${eventId}/guests`} method="POST" className="space-y-3">
+      <form action={`/api/events/${eventId}/guests`} method="POST" className="space-y-3" aria-busy={isReading}>
         {requestTooLarge && <p role="alert" className="text-sm text-danger">Data impor yang dikirim maksimal 4 MB setelah pengodean formulir. Bagi data menjadi beberapa impor.</p>}
         {parsed.errors.length>0 && <div role="alert" className="text-sm text-danger">{parsed.errors.slice(0,10).map((error,i)=><p key={i}>{error}</p>)}</div>}
         <input type="hidden" name="action" value="import_csv_lines" />
@@ -105,9 +122,10 @@ export function BatchImportBox({ eventId, maxGroupsLimit }: BatchImportBoxProps)
             name="csvLines"
             rows={5}
             required
+            disabled={!isReady}
             value={csvLines}
-            onChange={(e) => setCsvLines(e.target.value)}
-            placeholder={`Boleh tempel langsung dari Excel (copy beberapa sel lalu paste), atau ketik:\nBapak H. Sudirman & Ibu, 2, vvip, Meja VVIP 01, ya\nKeluarga Besar Dr. Hendra, 4, vip, Meja VIP 03, tidak`}
+            onChange={(e) => {uploadVersion.current++; setIsReading(false); setFileError(null); setFileName(null); setCsvLines(e.target.value);}}
+            placeholder="Tempel baris data tamu Anda dari Excel sesuai urutan kolom di atas. Template yang diunduh hanya berisi header."
             className="w-full rounded-button border border-border bg-ivory/60 p-3 text-xs font-mono text-ink"
           />
         </div>
@@ -116,8 +134,8 @@ export function BatchImportBox({ eventId, maxGroupsLimit }: BatchImportBoxProps)
           <div className="rounded-button border border-border bg-surface overflow-x-auto">
             <p className="px-3 pt-2 text-[11px] font-bold text-navy">
               Pratinjau: {parsed.rows.length} tamu akan diimpor
-              {parsed.rows.length > maxGroupsLimit && (
-                <span className="text-danger"> (melebihi batas paket {maxGroupsLimit} grup)</span>
+              {parsed.rows.length > remainingGroups && (
+                <span className="text-danger"> (melebihi kuota tersisa {remainingGroups} grup)</span>
               )}
             </p>
             <table className="w-full text-[11px]">
@@ -152,7 +170,7 @@ export function BatchImportBox({ eventId, maxGroupsLimit }: BatchImportBoxProps)
 
         <button
           type="submit"
-          disabled={requestTooLarge || parsed.errors.length>0 || !parsed.rows.length || parsed.rows.length>maxGroupsLimit}
+          disabled={!isReady || Boolean(fileError) || isReading || requestTooLarge || parsed.errors.length>0 || !parsed.rows.length || parsed.rows.length>remainingGroups}
           className="w-full min-h-[42px] rounded-button bg-navy border border-gold/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-gold-light hover:bg-navy-light transition"
         >
           🚀 Import Semua Baris Sekaligus
@@ -161,8 +179,7 @@ export function BatchImportBox({ eventId, maxGroupsLimit }: BatchImportBoxProps)
 
       <p className="text-[11px] text-ink/55">
         *Mendukung .xlsx langsung dari Excel, CSV pemisah koma/titik koma, dan tempel langsung dari
-        sel Excel. Baris contoh &ldquo;Contoh: …&rdquo; otomatis diabaikan. Maksimal kuota paket
-        saat ini: {maxGroupsLimit} grup.
+        sel Excel. Kuota tersisa: {remainingGroups} dari {maxGroupsLimit} grup. Perubahan bersamaan tetap diperiksa server saat disimpan.
       </p>
     </div>
   );

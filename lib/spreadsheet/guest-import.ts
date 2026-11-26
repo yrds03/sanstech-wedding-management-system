@@ -71,6 +71,7 @@ export interface ParsedGuestImport {
 
 /** Mengurai teks impor tamu (CSV `,` / `;`, tab, atau hasil tempel dari Excel) menjadi baris terstruktur. */
 export function parseGuestImportText(rawText: string): ParsedGuestImport {
+  if(rawText.length>5*1024*1024) return {rows:[],skippedLines:0,errors:['Ukuran data maksimal 5 MB.']};
   const records:string[]=[];let quoted=false;let record='';
   for(let i=0;i<rawText.length;i++){const ch=rawText[i]!;
     if(ch==='"'){if(quoted&&rawText[i+1]==='"'){record+='""';i++;continue;}quoted=!quoted;}
@@ -88,7 +89,6 @@ export function parseGuestImportText(rawText: string): ParsedGuestImport {
   const rows: GuestImportRow[] = [];
   let skippedLines = 0;
   const errors: string[] = [];
-  if(rawText.length>5*1024*1024) return {rows:[],skippedLines:0,errors:['Ukuran data maksimal 5 MB.']};
 
   for (const line of lines) {
     const parts = splitDelimitedLine(line, detectDelimiter(line));
@@ -106,11 +106,15 @@ export function parseGuestImportText(rawText: string): ParsedGuestImport {
       continue;
     }
 
-    const capacity = Number(parts[1] || 2);
+    const capacity = Number(parts[1]);
     const catRaw = (parts[2] ?? 'regular').toLowerCase();
     const guestCategory: GuestCategory =
       catRaw === 'vvip' ? 'vvip' : catRaw === 'vip' ? 'vip' : 'regular';
     const tvRaw = (parts[4] ?? 'tidak').toLowerCase();
+    if(parts.length>GUEST_IMPORT_HEADERS.length || !['','ya','yes','true','1','y','tidak','no','false','0','n'].includes(tvRaw) ||
+      (parts[3]?.length ?? 0)>80 || (parts[5]?.length ?? 0)>40 || (parts[6]?.length ?? 0)>500) {
+      errors.push(`Baris ${rows.length+skippedLines+errors.length+1}: periksa jumlah kolom, izin TampilTV (ya/tidak), meja (80 karakter), nomor kontak (40), dan catatan (500).`);continue;
+    }
     if(name.length<2 || name.length>160 || !Number.isInteger(capacity) || capacity<1 || capacity>20 || !['regular','vip','vvip','reguler',''].includes(catRaw)) {
       errors.push(`Baris ${rows.length+skippedLines+errors.length+1}: nama, kapasitas (1–20), atau kategori tidak valid.`); continue;
     }

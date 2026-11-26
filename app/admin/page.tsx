@@ -67,7 +67,7 @@ export default async function PlatformAdminPage({
         <div className="rounded-card border-2 border-gold/40 bg-gradient-to-r from-navy-dark via-navy to-navy-light text-ivory p-7 shadow-md">
           <Badge variant="gold">PANEL KONTROL PEMILIK SISTEM (SUPER ADMIN — TERSEMBUNYI DARI KLIEN)</Badge>
           <h1 className="mt-2 font-serif text-3xl font-bold text-white">
-            Pengaturan Harga Paket, Katalog Add-On, Masa Aktif Akun &amp; Lisensi Acara
+            Pengaturan Harga Paket, Katalog Add-On, Masa Akses Laporan &amp; Lisensi Acara
           </h1>
           <p className="mt-1.5 text-sm text-ivory/80 max-w-3xl">
             Panel ini hanya dapat digunakan oleh akun yang diberi hak administrator platform
@@ -89,7 +89,7 @@ export default async function PlatformAdminPage({
             <section className="rounded-card border border-gold/30 bg-surface p-6 sm:p-7 shadow-sm space-y-4">
               <div>
                 <h2 className="font-serif text-2xl font-bold text-navy">
-                  1. Harga Paket Utama &amp; Masa Aktif Akun Pasca-Acara
+                  1. Harga Paket Utama &amp; Masa Akses Laporan Pasca-Acara
                 </h2>
                 <p className="mt-1 text-xs text-ink/65 leading-relaxed">
                   Perubahan harga di bawah ini langsung memperbarui tampilan harga di Landing Page
@@ -139,7 +139,7 @@ export default async function PlatformAdminPage({
                   htmlFor="gracePeriodDaysAfterEvent"
                   className="block text-xs font-bold uppercase tracking-wider text-navy mb-1.5"
                 >
-                  Masa Aktif Akun Setelah Tanggal Acara Selesai (Hari)
+                  Masa Akses Laporan Setelah Acara (Hari)
                 </label>
                 <input
                   id="gracePeriodDaysAfterEvent"
@@ -151,10 +151,10 @@ export default async function PlatformAdminPage({
                   className="w-full min-h-[44px] rounded-button border border-border bg-ivory/60 px-3.5 py-2 text-sm font-bold text-navy tabular-nums"
                 />
                 <p className="mt-1.5 text-xs text-ink/70 leading-relaxed">
-                  <strong>Siklus Akun Pasca-Acara:</strong> H+1 s/d H+
-                  {retention.gracePeriodDaysAfterEvent} hari akun masih bisa login untuk unduh
+                  <strong>Akses Laporan Pasca-Acara:</strong> H+1 s/d H+
+                  {retention.gracePeriodDaysAfterEvent} hari anggota masih dapat membuka
                   laporan Excel/CSV (scanner terkunci). Setelah H+
-                  {retention.gracePeriodDaysAfterEvent} hari akun otomatis diarsipkan.
+                  {retention.gracePeriodDaysAfterEvent} hari akses anggota ke acara ini dibatasi. Akun tidak dihapus.
                 </p>
               </div>
             </section>
@@ -163,10 +163,10 @@ export default async function PlatformAdminPage({
             <section className="rounded-card border border-gold/30 bg-surface p-6 sm:p-7 shadow-sm space-y-4">
               <div>
                 <h2 className="font-serif text-2xl font-bold text-navy">
-                  2. Pengaturan Harga 10 Layanan Tambahan (Add-Ons)
+                  2. Harga Layanan dengan Konfirmasi Manual
                 </h2>
                 <p className="mt-1 text-xs text-ink/65 leading-relaxed">
-                  Sesuaikan tarif sewa perangkat keras, kru lapangan, maupun kuota tambahan:
+                  Harga referensi untuk layanan yang ketersediaan dan pelaksanaannya dikonfirmasi pengelola. Modul yang belum tersedia tidak ditawarkan.
                 </p>
               </div>
 
@@ -204,7 +204,7 @@ export default async function PlatformAdminPage({
             type="submit"
             className="w-full min-h-[48px] rounded-button bg-navy border border-gold/50 px-6 py-3 text-xs font-bold uppercase tracking-widest text-gold-light shadow-md hover:bg-navy-light transition"
           >
-            💾 Simpan Seluruh Harga Paket, Harga 10 Add-On &amp; Masa Aktif Akun
+            Simpan Harga Paket, Layanan Manual &amp; Masa Akses Acara
           </button>
         </form>
 

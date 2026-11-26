@@ -1,4 +1,4 @@
-/* Keep this standalone script project private to its owner.
+/* Keep this script project private to its owner.
  * Deploy as a Web App, executing as its owner, accessible to Anyone.
  * The endpoint is public; every operation requires a timestamped HMAC from Vercel.
  * Script Properties: DRIVE_GATEWAY_SECRET (>=32 random characters), DRIVE_FILE_ID.
@@ -160,7 +160,14 @@ function doPost(e) {
     if (snapshot.format !== SNAPSHOT_FORMAT || !Number.isSafeInteger(snapshot.version) || snapshot.version < 0 ||
       (snapshot.data === null && snapshot.version !== 0) ||
       (snapshot.data !== null && (typeof snapshot.data !== 'string' || hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, snapshot.data, Utilities.Charset.UTF_8)) !== snapshot.checksum))) return output_({ok: false, code: 'CORRUPT_STORAGE'});
-    if (request.action === 'read') return output_({ok: true, snapshot: snapshot});
+    if (request.action === 'read') {
+      // Always recheck actual Drive bytes/permissions under ScriptLock. Confirming
+      // BOTH fields avoids retransmitting an unchanged multi-megabyte snapshot.
+      if (request.knownVersion === snapshot.version && request.knownChecksum === snapshot.checksum) {
+        return output_({ok:true,unchanged:true,version:snapshot.version,checksum:snapshot.checksum,format:snapshot.format});
+      }
+      return output_({ok: true, snapshot: snapshot});
+    }
     if (!Number.isSafeInteger(request.baseVersion) || request.baseVersion < 0 || request.format !== SNAPSHOT_FORMAT ||
       typeof request.data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(request.data) || request.data.length > MAX_DATA_LENGTH ||
       hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, request.data, Utilities.Charset.UTF_8)) !== request.checksum) return output_({ok: false, code: 'INVALID_REQUEST'});

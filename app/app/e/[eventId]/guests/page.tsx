@@ -80,7 +80,7 @@ export default async function EventGuestsPage({
               </Badge>
             </div>
             <h1 className="mt-2 font-serif text-3xl font-bold text-navy">
-              Daftar Tamu &amp; Kuota Keluarga (S08 / S09)
+              Daftar Tamu &amp; Kuota Keluarga
             </h1>
             <p className="text-xs text-ink/70 mt-1">
               Kelola daftar penerima undangan (Individu, Pasangan, Keluarga), atur kategori
@@ -258,7 +258,7 @@ export default async function EventGuestsPage({
           {/* Import Massal CSV / Excel Copy-Paste & File Upload */}
           <section className="rounded-card border border-gold/30 bg-surface p-6 shadow-sm flex flex-col justify-between">
             <div>
-              <Badge variant="gold">IMPORT CEPAT (S09)</Badge>
+              <Badge variant="gold">IMPORT CEPAT</Badge>
               <h2 className="mt-2 font-serif text-xl font-bold text-navy">
                 Import Batch dari Excel / CSV
               </h2>
@@ -270,6 +270,8 @@ export default async function EventGuestsPage({
               <BatchImportBox
                 eventId={event.id}
                 maxGroupsLimit={plan.limits.maxInvitationGroups}
+                remainingGroups={Math.max(0,plan.limits.maxInvitationGroups-event.metrics.invitationGroupsCount)}
+                importAllowed={plan.features.importExcel}
               />
             </div>
           </section>

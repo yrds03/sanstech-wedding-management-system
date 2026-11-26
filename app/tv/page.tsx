@@ -71,8 +71,7 @@ export default async function TvPairingPortalPage({searchParams}:{searchParams:P
           </p>
           <p>
             3. <strong>Smart TV / Laptop Operator LED di Panggung</strong> yang membuka halaman ini
-            otomatis menangkap sinyal tersebut dalam <strong>2,5 detik</strong> dan menampilkan nama
-            tamu di layar panggung!
+            menerima pembaruan berkala dan menampilkan sambutan untuk tamu yang mengizinkan tampil publik. Waktu tampil mengikuti koneksi internet perangkat.
           </p>
         </div>
 

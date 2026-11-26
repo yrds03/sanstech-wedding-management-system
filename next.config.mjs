@@ -3,6 +3,18 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ['@electric-sql/pglite'],
+  webpack(config, {dev}) {
+    if (dev) {
+      // Runtime JSON and browser artifacts must not trigger a source reload
+      // during a form submission or an upload in the local test environment.
+      const ignored = config.watchOptions?.ignored;
+      const runtimePaths = /(?:^|[\\/])(?:\.local-data|test-results|playwright-report)(?:[\\/]|$)/;
+      config.watchOptions = {...config.watchOptions, ignored: ignored instanceof RegExp
+        ? new RegExp(`(?:${ignored.source})|(?:${runtimePaths.source})`, ignored.flags)
+        : [...(Array.isArray(ignored) ? ignored : ignored ? [ignored] : []), '**/.local-data', '**/.local-data/**', '**/test-results', '**/test-results/**', '**/playwright-report', '**/playwright-report/**']};
+    }
+    return config;
+  },
   outputFileTracingIncludes: {'/*': ['./database/**/*.sql', './node_modules/@electric-sql/pglite/dist/*']},
   async headers() {
     return [

@@ -52,7 +52,7 @@ export default async function EventReportsPage({
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <Badge variant="gold">LAPORAN REKONSILIASI AKHIR ACARA (S18)</Badge>
+            <Badge variant="gold">LAPORAN REKONSILIASI AKHIR ACARA</Badge>
             <h1 className="mt-2 font-serif text-3xl font-bold text-navy">
               Laporan Kehadiran &amp; Ekspor Data Klien
             </h1>

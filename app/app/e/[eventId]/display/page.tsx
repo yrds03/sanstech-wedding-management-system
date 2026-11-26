@@ -1,4 +1,6 @@
 import { hasPermission } from '@/lib/permissions';
+import {getAppOrigin} from '@/lib/app-url';
+import {buildTvOperatorMessage} from '@/lib/display/pairing-message';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuthenticatedUser } from '@/lib/auth/session';
@@ -43,7 +45,8 @@ export default async function EventDisplayConfigPage({
     .map((l) => groups.find((g) => g.id === l.invitationGroupId))
     .find((g) => g && g.allowedPublicDisplay);
 
-  const waOperatorText = `Halo Tim Multimedia / Operator LED Panggung untuk acara *${event.title}* (${event.brideName} & ${event.groomName}).\n\nSilakan buka portal layar sambutan di Laptop HDMI / Smart TV:\n1. Buka menu */tv* pada website sistem kami\n2. Masukkan Kode Pairing TV 6-Digit: *${tvPairingCode}*\n(Atau buka langsung tautan layar penuh: /display/${tvPairingCode})\n3. Tekan F11 untuk Full Screen. Nama tamu akan muncul otomatis saat di-scan di meja registrasi.`;
+  const waOperatorText = buildTvOperatorMessage({appOrigin:await getAppOrigin(),eventTitle:event.title,
+    brideName:event.brideName,groomName:event.groomName,pairingCode:tvPairingCode});
 
   return (
     <AppShell
@@ -57,7 +60,7 @@ export default async function EventDisplayConfigPage({
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <Badge variant="gold">KONEKSI SMART TV &amp; VIDEOTRON LED PANGGUNG (S16 &amp; S17)</Badge>
+            <Badge variant="gold">KONEKSI SMART TV &amp; VIDEOTRON LED PANGGUNG</Badge>
             <h1 className="mt-2 font-serif text-3xl font-bold text-navy">
               Pairing Layar TV / LED Panggung Lintas Perangkat
             </h1>
@@ -92,8 +95,7 @@ export default async function EventDisplayConfigPage({
                 <li>
                   Tekan <strong>F11 (Full Screen)</strong> di laptop operator LED. Sekarang setiap
                   kali petugas penerima tamu di pintu depan men-scan QR menggunakan HP mereka, layar
-                  LED panggung akan <strong>otomatis berubah sendiri dalam 2,5 detik</strong>{' '}
-                  melalui jaringan Cloud!
+                  layar akan memperbarui sambutan setelah transaksi tersimpan dan pembaruan diterima melalui internet. Waktunya mengikuti koneksi perangkat.
                 </li>
               </ol>
 
@@ -191,7 +193,7 @@ export default async function EventDisplayConfigPage({
                 </p>
               </div>
               <div className="mt-3 pt-2 border-t border-gold/30 text-[11px] font-bold text-gold-light">
-                Diterima dalam 2,5 Detik &rarr;
+                Pembaruan melalui internet
               </div>
             </div>
 

@@ -71,7 +71,7 @@ export default async function EventInvitationsPage({
     >
       <div className="space-y-8">
         <div>
-          <Badge variant="gold">MODUL UNDANGAN DIGITAL &amp; GENERATOR QR ASLI (S10)</Badge>
+          <Badge variant="gold">MODUL UNDANGAN DIGITAL &amp; GENERATOR QR ASLI</Badge>
           <h1 className="mt-2 font-serif text-3xl font-bold text-navy">
             Generator Undangan Digital &amp; Kartu QR Code Unik
           </h1>

@@ -53,6 +53,8 @@ describe('Google Drive gateway security', () => {
   expect(JSON.stringify(server.status())).not.toContain(data);
   expect(server.request(payload)).toEqual({ok: true, committed: false});
   expect(server.request({action: 'read'}).snapshot.version).toBe(1);
+  expect(server.request({action:'read',knownVersion:1,knownChecksum:payload.checksum})).toEqual({ok:true,unchanged:true,version:1,checksum:payload.checksum,format:payload.format});
+  expect(server.request({action:'read',knownVersion:1,knownChecksum:'wrong'}).snapshot.version).toBe(1);
   expect(server.isLocked()).toBe(false);
  });
  it('rejects forged, expired, corrupt and shared storage requests', () => {
@@ -72,6 +74,27 @@ describe('Google Drive gateway security', () => {
  it('rejects a mismatched checksum instead of opening corrupt data', async () => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ok: true, snapshot: {version: 1, data: 'eA==', checksum: 'wrong', format: 'sanstech-pglite-0.6.0-aes256gcm-gzip-v2'}})));
   await expect(new DriveSnapshotStore().read()).rejects.toThrow('Invalid Drive snapshot');
+ });
+ it('confirms unchanged data through the gateway and never falls back to cache when the network fails', async () => {
+  const data=Buffer.from('encrypted-test-snapshot').toString('base64');
+  const snapshot={version:3,data,checksum:createHash('sha256').update(data).digest('hex'),format:'sanstech-pglite-0.6.0-aes256gcm-gzip-v2'};
+  const request=vi.fn().mockResolvedValueOnce(Response.json({ok:true,snapshot}))
+   .mockResolvedValueOnce(Response.json({ok:true,unchanged:true,version:3,checksum:snapshot.checksum,format:snapshot.format}))
+   .mockRejectedValueOnce(new Error('network unavailable'));
+  vi.stubGlobal('fetch',request);const store=new DriveSnapshotStore();
+  expect(await store.read()).toEqual(snapshot);expect(await store.read()).toEqual(snapshot);
+  const envelope=JSON.parse(request.mock.calls[1]![1].body);expect(JSON.parse(envelope.message)).toMatchObject({knownVersion:3,knownChecksum:snapshot.checksum});
+  await expect(store.read()).rejects.toThrow('network unavailable');
+ });
+ it('rejects a version confirmation without matching cached content', async () => {
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(Response.json({ok:true,unchanged:true,version:99,checksum:'forged',format:'sanstech-pglite-0.6.0-aes256gcm-gzip-v2'})));
+  await expect(new DriveSnapshotStore().read()).rejects.toThrow('Invalid Drive version confirmation');
+ });
+ it('normalizes read-only DOM timeout errors before server rendering', async () => {
+  vi.stubGlobal('fetch',vi.fn().mockRejectedValue(new DOMException('upstream timeout','TimeoutError')));
+  const error=await new DriveSnapshotStore().read().catch(error=>error);
+  expect(error).toMatchObject({status:503,code:'DRIVE_UNAVAILABLE'});
+  expect(()=>{error.message='safe server rendering message';}).not.toThrow();
  });
 });
 

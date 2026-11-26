@@ -4,7 +4,7 @@ import { getCurrentUserServer } from '@/lib/auth/session';
 import { createAppError, getHttpStatusForError } from '@/lib/errors';
 import { getAddOnsCatalog } from '@/lib/plans';
 import { resetAllDataToZero, updateEventPlanByAdmin } from '@/lib/db/repository';
-import { PlanCode } from '@/lib/types';
+import {z} from 'zod';
 import { verifySameOriginMutation } from '@/lib/security/rate-limit';
 import {savePlatformPricing,pricingSchema} from '@/lib/plans/server';
 import {isLocalDemoEnabled} from '@/lib/config';
@@ -47,8 +47,9 @@ export async function POST(request: Request) {
   }
 
   if (action === 'activate_event_plan') {
-    const eventId = String(formData.get('eventId') ?? '');
-    const planCode = (String(formData.get('planCode') ?? 'pro') as PlanCode) || 'pro';
+    const input=z.object({eventId:z.uuid(),planCode:z.enum(['free','pro','pro_plus'])}).safeParse({eventId:formData.get('eventId'),planCode:formData.get('planCode')});
+    if(!input.success)return NextResponse.json(createAppError('VALIDATION_ERROR','Acara atau paket yang dipilih tidak valid.'),{status:400});
+    const {eventId,planCode}=input.data;
     const res = (await updateEventPlanByAdmin({
       actorUserId: user.userId,
       eventId,
@@ -60,6 +61,8 @@ export async function POST(request: Request) {
       303
     );
   }
+
+  if(action!=='update_pricing')return NextResponse.json(createAppError('VALIDATION_ERROR','Tindakan pengaturan tidak dikenal.'),{status:400});
 
   const proPriceIdr = Number(formData.get('proPriceIdr') ?? 1490000);
   const proPlusPriceIdr = Number(formData.get('proPlusPriceIdr') ?? 3490000);
@@ -88,7 +91,7 @@ export async function POST(request: Request) {
   return NextResponse.redirect(
     new URL(
       `/admin?notice=${encodeURIComponent(
-        'Harga paket utama, harga 10 layanan Add-On, & masa aktif akun pasca-acara berhasil diperbarui!'
+        'Harga paket, layanan dengan konfirmasi manual, dan masa akses acara berhasil diperbarui.'
       )}`,
       request.url
     ),

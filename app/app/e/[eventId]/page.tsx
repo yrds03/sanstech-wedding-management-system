@@ -108,7 +108,7 @@ export default async function EventOverviewPage({
               Lokasi: {event.venue}, {event.city} · Dikelola oleh: {event.workspaceName}
             </p>
             <p className="text-[11px] text-ivory/65 mt-2 bg-navy-dark/50 inline-block px-3 py-1 rounded border border-gold/25">
-              ⏳ <strong>Status Masa Aktif Akun:</strong> {lifecycle.explanationId}
+              ⏳ <strong>Status Masa Akses Acara:</strong> {lifecycle.explanationId}
             </p>
           </div>
 

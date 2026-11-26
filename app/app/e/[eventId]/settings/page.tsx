@@ -44,7 +44,7 @@ export default async function EventSettingsPage({
       <div className="max-w-3xl space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-navy">Pengaturan Acara (S07)</h1>
+            <h1 className="text-2xl font-bold text-navy">Pengaturan Acara</h1>
             <p className="mt-1 text-sm text-ink/70">
               Perbarui informasi mempelai, waktu resepsi, lokasi, dan status publikasi acara.
             </p>

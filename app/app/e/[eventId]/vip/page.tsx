@@ -55,7 +55,7 @@ export default async function EventVipUsherPage({
         <AutoRefresh/>
         {notifications.length>0 && <section className="rounded-card border bg-surface p-6 space-y-3"><h2 className="text-xl font-bold">Notifikasi penjemputan VIP</h2>{notifications.map(n=><div key={n.id} className="border rounded p-3"><p>{n.displayName} · {n.tableLabel??'Meja belum ditentukan'}</p>{n.status==='acknowledged'?<p className="text-success">Sudah ditangani</p>:<form action={`/api/events/${event.id}/vip`} method="POST"><input type="hidden" name="notificationId" value={n.id}/><button className="rounded bg-navy text-white px-3 py-2 mt-2">Tandai sudah dijemput</button></form>}</div>)}</section>}
         <div>
-          <Badge variant="gold">PANEL KOORDINASI PROTOKOL VIP &amp; TIM USHER (S15)</Badge>
+          <Badge variant="gold">PANEL KOORDINASI PROTOKOL VIP &amp; TIM USHER</Badge>
           <h1 className="mt-2 font-serif text-3xl font-bold text-navy">
             Antrean Penjemputan Tamu VVIP &amp; VIP
           </h1>

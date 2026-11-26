@@ -6,16 +6,10 @@ import {getCurrentUserServer} from '@/lib/auth/session';
 import {getEventIfAuthorized} from '@/lib/db/repository';
 import {hasPermission} from '@/lib/permissions';
 
-const EXAMPLE_ROWS: Array<Array<string | number>> = [
-  ['Contoh: Bapak H. Sudirman & Ibu', 2, 'vvip', 'Meja VVIP 01', 'ya', '081234567890', 'Jemput di lobby utama'],
-  ['Contoh: Keluarga Besar Dr. Hendra', 4, 'vip', 'Meja VIP 03', 'tidak', '081298765432', 'Privasi pejabat - jangan tampil di TV'],
-  ['Contoh: Siti Rahmawati', 1, 'regular', 'Meja Melati 05', 'ya', '081311223344', 'Sahabat mempelai'],
-];
-
 const INSTRUCTION_ROWS: string[][] = [
   ['Petunjuk Pengisian Template Tamu SANSTECH'],
-  ['1. Isi data tamu mulai dari baris 2 pada sheet "Data Tamu". Baris yang diawali "Contoh:" otomatis diabaikan saat impor.'],
-  ['2. Nama Penerima: nama undangan, mis. "Bapak Budi & Ibu" atau "Keluarga Besar Hartono".'],
+  ['1. Template tidak berisi tamu contoh. Isi data tamu Anda mulai dari baris 2 pada sheet "Data Tamu". Jangan mengubah header.'],
+  ['2. Nama Penerima: nama yang dicetak pada satu undangan, untuk satu orang atau satu keluarga.'],
   ['3. Kuota: jumlah orang yang boleh hadir (angka 1 - 20).'],
   ['4. Kategori: isi vvip, vip, atau regular.'],
   ['5. Meja: nama atau nomor meja (boleh dikosongkan).'],
@@ -38,7 +32,6 @@ export async function GET(request: Request,{params}:{params:Promise<{id:string}>
     const lines = [
       'sep=;',
       [...GUEST_IMPORT_HEADERS].join(';'),
-      ...EXAMPLE_ROWS.map((r) => r.map((c) => String(c)).join(';')),
     ].join('\r\n');
 
     return new NextResponse(`\uFEFF${lines}`, {
@@ -54,7 +47,7 @@ export async function GET(request: Request,{params}:{params:Promise<{id:string}>
   const xlsx = buildXlsx([
     {
       name: 'Data Tamu',
-      rows: [[...GUEST_IMPORT_HEADERS], ...EXAMPLE_ROWS],
+      rows: [[...GUEST_IMPORT_HEADERS]],
       columnWidths: [38, 8, 12, 18, 11, 16, 40],
     },
     { name: 'Petunjuk', rows: INSTRUCTION_ROWS, columnWidths: [120] },

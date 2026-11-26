@@ -49,6 +49,9 @@ describe('configuration and request boundaries',()=>{
   expect(parsed.rows[0]?.allowedPublicDisplay).toBe(false);expect(parsed.rows[0]?.notesPrivateOptional).toContain('\n');
   expect(parseGuestImportText('Budi,2.5,vip').errors.length).toBe(1);
   expect(parseGuestImportText('Budi,21,vip').errors.length).toBe(1);
+  expect(parseGuestImportText('Budi,,vip').errors.length).toBe(1);
+  expect(parseGuestImportText('Budi,2,vip,,mungkin').errors.length).toBe(1);
+  expect(parseGuestImportText('Budi,2,vip,,tidak,,,kolom tidak sengaja').errors.length).toBe(1);
   expect(detectDelimiter('"Budi; keluarga",2,vip')).toBe(',');
  });
 });

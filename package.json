@@ -4,7 +4,7 @@
   "private": true,
   "description": "SANSTECH Wedding Management System — Satu platform untuk mengelola perjalanan tamu, dari menerima undangan sampai pulang dari acara.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
@@ -14,6 +14,7 @@
     "test:e2e": "playwright test",
     "test:concurrency": "vitest run --config vitest.postgres.config.mts",
     "drive:admin": "node --env-file-if-exists=.env.local scripts/drive-admin.mjs",
+    "drive:audit": "node --env-file-if-exists=.env.local scripts/audit-drive.mjs",
     "test:drive": "playwright test --config playwright.drive.config.ts"
   },
   "dependencies": {

@@ -1,4 +1,5 @@
 import {test, expect, type Page} from '@playwright/test';
+import fs from 'node:fs';
 const base = 'http://localhost:3131';
 async function googleFlow(page: Page, options?: {wrongNonce?: boolean; wrongSignature?: boolean; sub?: string}) {
  const scriptAuth = process.env.WMS_TEST_GOOGLE_SCRIPT === '1';
@@ -32,6 +33,21 @@ async function googleFlow(page: Page, options?: {wrongNonce?: boolean; wrongSign
  await page.goto(`${base}/auth/callback?state=${encodeURIComponent(authorization!.searchParams.get('state')!)}&code=${code}`);
 }
 
+test('production build recovers from a Drive timeout without rendering a raw exception', async ({page}) => {
+ await googleFlow(page,{sub:'browser-recovery'});
+ await expect(page).toHaveURL(/\/app\/workspaces/);
+ const marker='test-results/drive-timeout.marker';
+ try {
+  fs.writeFileSync(marker,'local test only');
+  await page.goto('/app/workspaces');
+  await expect(page.getByRole('heading',{name:'Halaman belum dapat dimuat'})).toBeVisible();
+  fs.unlinkSync(marker);
+  await page.getByRole('button',{name:'Coba lagi',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Halaman belum dapat dimuat'})).toHaveCount(0);
+  await expect(page).toHaveURL(/\/app\/workspaces/);
+ } finally {if(fs.existsSync(marker))fs.unlinkSync(marker);}
+});
+
 test('production build uses Google identity and Drive snapshots through the whole guest workflow', async ({page, context}) => {
  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
  await googleFlow(page);
@@ -47,6 +63,7 @@ test('production build uses Google identity and Drive snapshots through the whol
  await form.locator('button[type="submit"]').click(); await expect(page).toHaveURL(/\/app\/e\/[a-f0-9-]+$/);
  const eventId = page.url().split('/').at(-1)!;
  await page.goto(`/app/e/${eventId}/guests`);
+ await expect(page.getByText(/^Impor CSV\/Excel tersedia pada paket Pro/)).toBeVisible();
  const guestForm = page.locator('form').filter({has: page.locator('input[name="displayName"]')}).first();
  await guestForm.locator('[name="displayName"]').fill('Keluarga Drive Browser'); await guestForm.locator('[name="capacity"]').fill('4');
  await guestForm.locator('button[type="submit"]').click(); await expect(page.getByText('Keluarga Drive Browser', {exact: true})).toBeVisible();

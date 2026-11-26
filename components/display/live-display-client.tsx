@@ -39,7 +39,9 @@ export function LiveDisplayClient({
     async function pollDisplayState() {
       try {
         const controller=new AbortController();pending=controller;
-        const timeout=setTimeout(()=>controller.abort(),8000);
+        // A cold Drive read plus an acknowledged commit may take longer than
+        // eight seconds. Keep one request in flight, below the server's 60s cap.
+        const timeout=setTimeout(()=>controller.abort(),45000);
         const res = await fetch(`/api/display/${encodeURIComponent(sessionId)}/state`, {
           cache: 'no-store',
           signal: controller.signal,

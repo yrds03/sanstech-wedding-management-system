@@ -8,7 +8,9 @@ Gunakan Node.js **24 LTS** dan npm.
 
 ```powershell
 npm ci
-Copy-Item .env.example .env.local
+if (-not (Test-Path -LiteralPath .env.local)) {
+  Copy-Item -LiteralPath .env.example -Destination .env.local
+}
 npm run dev
 ```
 
@@ -24,13 +26,17 @@ Aturan transaksi PostgreSQL dijalankan oleh PGlite di server Vercel. Hasil commi
 
 Kode gateway/manifest ada di `google-apps-script/`. Login dapat memakai deployment kedua pada proyek Apps Script yang sama: berjalan sebagai pengguna dengan izin identitas saja. Gateway penyimpanan tetap berjalan sebagai pemilik. Kode masuk berumur dua menit, sekali pakai, terikat state/nonce dan PKCE; server memverifikasi tanda tangan ID token Google. OAuth Web client juga tetap didukung. Skema SQL ada di `database/migrations/`; rahasia dan database tidak dikirim ke browser atau Git.
 
-Panduan lengkap: [docs/GOOGLE_DRIVE_SETUP.md](docs/GOOGLE_DRIVE_SETUP.md). Di dalamnya terdapat pemasangan Apps Script, OAuth Google, environment Vercel, pengujian akun, pemberian admin, batas penyimpanan dan pemulihan.
+Panduan pengguna langkah demi langkah tersedia pada `/panduan`: login Google, workspace, acara, peran tim, tujuh kolom template, impor, RSVP, check-in, koreksi, TV, VIP, laporan, checklist uji coba dan pemecahan masalah. Template impor hanya berisi header; tidak ada baris tamu contoh.
+
+Panduan administrator: [docs/GOOGLE_DRIVE_SETUP.md](docs/GOOGLE_DRIVE_SETUP.md). Jangan menimpa `.env.local` atau mengganti kunci enkripsi pada penyimpanan yang sudah berisi data. `npm run drive:audit` hanya membaca jumlah data dan tidak menjalankan migration atau commit.
+
+Free/Pro tetap mengikuti kuota paket. Modul Extra Quota, perpanjangan arsip dan souvenir yang belum tersedia tidak ditampilkan sebagai penawaran. Layanan perangkat, kru, cetak dan pendampingan pengiriman memerlukan konfirmasi manual. Hosting Vercel Hobby gratis untuk penggunaan pribadi/nonkomersial; kuota serta biaya akun Google mengikuti paket pemilik. Lihat [ketentuan Vercel](https://vercel.com/legal/terms) dan [kuota Google](https://one.google.com/about/plans).
 
 ## GitHub dan Vercel
 
 Repository: https://github.com/yrds03/sanstech-wedding-management-system
 
-Proyek Vercel: `yrds/sanstech-wedding-management-system`. Push ke `main` memicu deployment yang sudah terpasang. Gunakan Node.js 24, instalasi `npm ci`, build `npm run build`. Isi `DRIVE_GATEWAY_URL`, `DRIVE_GATEWAY_SECRET`, `DRIVE_ENCRYPTION_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` dan `NEXT_PUBLIC_APP_URL` pada environment target. Setelah mengganti environment, redeploy.
+Proyek Vercel: `yrds/sanstech-wedding-management-system`. Push ke `main` memicu deployment yang sudah terpasang. Gunakan Node.js 24, instalasi `npm ci`, build `npm run build`. Isi `DRIVE_GATEWAY_URL`, `DRIVE_GATEWAY_SECRET`, `DRIVE_ENCRYPTION_KEY` dan `NEXT_PUBLIC_APP_URL`. Login pada proyek ini memakai `GOOGLE_AUTH_SCRIPT_URL` dan `GOOGLE_AUTH_SCRIPT_ID`; alternatif OIDC langsung memakai `GOOGLE_CLIENT_ID` dan `GOOGLE_CLIENT_SECRET`. Setelah mengganti environment, redeploy.
 
 Publikasi kode tidak otomatis membuat file di akun Google, menerbitkan Apps Script atau membuat OAuth client. `/api/health` memberi status koneksi sebenarnya. Preview yang mengubah data harus memakai penyimpanan pengujian terpisah.
 

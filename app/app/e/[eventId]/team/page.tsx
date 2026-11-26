@@ -70,7 +70,7 @@ export default async function EventTeamPage({
       <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-navy">
-            Tim Acara &amp; Kolaborasi Pasangan (S19)
+            Tim Acara &amp; Kolaborasi Pasangan
           </h1>
           <p className="mt-1 text-sm text-ink/70">
             Undang Calon Pengantin, Supervisor Hari-H, Petugas Scanner (Receptionist), atau Tim

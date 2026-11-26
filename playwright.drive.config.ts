@@ -8,6 +8,6 @@ export default defineConfig({
   env: {WMS_TEST_GOOGLE: '1', DRIVE_ENCRYPTION_KEY: 'ab'.repeat(32), DRIVE_GATEWAY_URL: 'https://script.google.com/macros/s/local-test/exec',
    DRIVE_GATEWAY_SECRET: 'local-test-only-secret-with-more-than-32-characters', GOOGLE_CLIENT_ID: 'local-test.apps.googleusercontent.com',
    GOOGLE_CLIENT_SECRET: 'local-test-only-client-secret', NEXT_PUBLIC_APP_URL: 'http://localhost:3131', LOCAL_DEMO_MODE: 'false',
-   GOOGLE_AUTH_SCRIPT_URL: process.env.WMS_TEST_GOOGLE_SCRIPT === '1' ? 'https://script.google.com/macros/s/local-login/exec' : '',
-   GOOGLE_AUTH_SCRIPT_ID: process.env.WMS_TEST_GOOGLE_SCRIPT === '1' ? 'a'.repeat(60) : ''}},
+   GOOGLE_AUTH_SCRIPT_URL: process.env.WMS_TEST_GOOGLE_SCRIPT === '1' ? 'https://script.google.com/macros/s/local-login/exec' : 'disabled-local-test',
+   GOOGLE_AUTH_SCRIPT_ID: process.env.WMS_TEST_GOOGLE_SCRIPT === '1' ? 'a'.repeat(60) : 'disabled'}},
 });

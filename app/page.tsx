@@ -208,91 +208,18 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* 2. Simulasi VIP */}
-      <section id="simulasi-vip" className="py-20 bg-navy-dark text-ivory border-y border-gold/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="mb-12 max-w-3xl">
-            <Badge variant="gold" className="mb-3">
-              SIMULASI PROTOKOL TAMU KEHORMATAN (VVIP)
-            </Badge>
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white">
-              Koordinasi Penjemputan Tanpa Mengorbankan Privasi Tamu Penting
-            </h2>
-            <p className="mt-3 text-sm text-ivory/80 leading-relaxed">
-              Pejabat atau tokoh penting sering kali membutuhkan penjemputan khusus oleh Usher namun
-              tidak berkenan namanya terpampang di layar publik gedung. {BRAND_SHORT_NAME}{' '}
-              memberikan kendali penuh per tamu.
-            </p>
+      <section id="simulasi-vip" className="bg-navy-dark py-16 text-ivory">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <p className="text-sm font-semibold text-gold-light">Alur penerimaan tamu</p>
+          <h2 className="mt-2 font-serif text-3xl font-bold">Mulai dari data acara Anda sendiri</h2>
+          <div className="mt-8 grid gap-5 md:grid-cols-3">
+            {[
+              {title:'Siapkan undangan',text:'Buat acara, isi daftar tamu dan kapasitas tiap undangan, lalu bagikan tautan serta QR kepada penerimanya.'},
+              {title:'Catat kedatangan',text:'Petugas memindai QR atau mencari nama, memeriksa sisa kapasitas, lalu mengonfirmasi jumlah orang yang benar-benar hadir.'},
+              {title:'Koordinasikan sambutan',text:'Pada paket Pro/Pro Plus, layar yang sudah dihubungkan menampilkan tamu yang menyetujui tampil publik. Pro Plus menambahkan notifikasi internal Usher.'},
+            ].map(item=><article key={item.title} className="rounded-card border border-gold/30 p-6"><h3 className="font-serif text-2xl text-gold-light">{item.title}</h3><p className="mt-3 leading-relaxed text-ivory/85">{item.text}</p></article>)}
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="rounded-card bg-surface text-ink p-6 border border-gold/30">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-ink/60">
-                  1. Layar Petugas Scanner
-                </span>
-                <Badge variant="success">QR TERVERIFIKASI</Badge>
-              </div>
-              <div className="mt-4 p-5 rounded-button bg-ivory border border-gold/30">
-                <p className="font-serif text-xl font-bold text-navy">Bapak Budi Santoso &amp; Ibu</p>
-                <p className="text-xs font-semibold text-gold-dark mt-1">
-                  KATEGORI VVIP · KUOTA 2 ORANG · MEJA VVIP 01
-                </p>
-                <div className="mt-4 flex items-center justify-between text-xs border-t border-border pt-3">
-                  <span>Status Buku Besar:</span>
-                  <span className="font-bold text-success">+2 Hadir Tercatat</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-card bg-gradient-to-b from-navy to-navy-dark text-ivory p-6 border-2 border-gold/50 flex flex-col justify-between text-center shadow-lg">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-gold-light">
-                2. Layar Sambutan Ballroom (16:9)
-              </p>
-              <div className="my-6">
-                <p className="text-[11px] tracking-[0.3em] uppercase text-ivory/70">
-                  THE ROYAL WEDDING OF
-                </p>
-                <p className="font-serif text-3xl font-bold text-gold-light mt-1">
-                  Andi &amp; Putri
-                </p>
-                <div className="my-3 h-px w-24 bg-gold/40 mx-auto" />
-                <p className="text-xs text-ivory/80">Selamat Datang Kehormatan</p>
-                <p className="font-serif text-2xl font-bold text-white mt-1">
-                  Bapak Budi Santoso
-                </p>
-                <p className="text-xs text-gold-light mt-1">
-                  Silakan Menuju Meja VVIP 01
-                </p>
-              </div>
-              <p className="text-[11px] text-ivory/60">
-                *Otomatis disembunyikan bila tamu berstatus <em>Private VIP</em>.
-              </p>
-            </div>
-
-            <div className="rounded-card bg-surface text-ink p-6 border border-gold/30 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-ink/60">
-                    3. Notifikasi Privat Usher WO
-                  </span>
-                  <Badge variant="gold">Royal Grand</Badge>
-                </div>
-                <div className="mt-4 rounded-button bg-gold/10 border border-gold/40 p-4">
-                  <p className="text-xs font-bold text-navy uppercase tracking-wider">
-                    🔔 Instruksi Penjemputan Pintu Utama
-                  </p>
-                  <p className="mt-2 text-sm text-ink leading-relaxed">
-                    &ldquo;Tamu VVIP (<strong>Bapak Budi Santoso</strong> — Meja VVIP 01) baru saja
-                    check-in. Tim Usher harap mendampingi menuju area VVIP.&rdquo;
-                  </p>
-                </div>
-              </div>
-              <p className="mt-4 text-xs text-ink/60">
-                Hanya muncul pada perangkat staf Usher &amp; Supervisor yang bertugas.
-              </p>
-            </div>
-          </div>
+          <Link href="/panduan#uji-coba" className="mt-6 inline-block rounded-button bg-gold px-5 py-3 font-semibold text-navy">Ikuti panduan uji coba</Link>
         </div>
       </section>
 
@@ -349,7 +276,7 @@ export default async function LandingPage() {
                       </strong>
                     </li>
                     <li className="flex justify-between">
-                      <span>Masa Aktif Akun Pasca-Acara</span>
+                      <span>Masa Akses Laporan Pasca-Acara</span>
                       <strong className="text-navy">H+{plan.postEventGraceDays} Hari</strong>
                     </li>
                     <li className="flex justify-between">
@@ -384,7 +311,7 @@ export default async function LandingPage() {
                         : 'border border-navy text-navy hover:bg-ivory'
                     }`}
                   >
-                    Pilih &amp; Uji Paket Ini
+                    {plan.code === 'free' ? 'Mulai dengan Free' : 'Masuk untuk melihat paket'}
                   </Link>
                 </div>
               </div>
@@ -399,11 +326,10 @@ export default async function LandingPage() {
               LAYANAN TAMBAHAN &amp; DUKUNGAN OPERASIONAL HARI-H (ADD-ONS)
             </Badge>
             <h3 className="font-serif text-3xl sm:text-4xl font-bold text-navy">
-              Katalog Add-On Fleksibel Sesuai Kebutuhan Acara
+              Layanan dengan Konfirmasi Manual
             </h3>
             <p className="mt-2 text-sm text-ink/70">
-              Pisahkan biaya lisensi software dari layanan perangkat keras, kru lapangan, maupun
-              tambahan kuota agar klien hanya membayar yang benar-benar dibutuhkan:
+              Harga berikut adalah referensi pendampingan, perangkat, kru dan cetak. Konfirmasikan ketersediaan, jadwal dan harga akhir kepada pengelola sebelum pembayaran. Layanan ini terpisah dari kuota paket aplikasi.
             </p>
           </div>
 
@@ -450,7 +376,7 @@ export default async function LandingPage() {
             <Link href="/panduan" className="text-gold-light hover:underline">
               Buku Pedoman Lengkap (Cetak PDF)
             </Link>
-            <span>UU Pelindungan Data Pribadi No. 27/2022</span>
+            <span>Akses data mengikuti peran pengguna</span>
           </div>
         </div>
       </footer>

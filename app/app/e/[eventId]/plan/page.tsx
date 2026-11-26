@@ -59,7 +59,7 @@ export default async function EventPlanPage({
               <Badge variant="outline">{lifecycle.badgeLabelId}</Badge>
             </div>
             <h1 className="mt-2 font-serif text-3xl font-bold text-navy">
-              Paket, Add-On &amp; Masa Aktif Akun (S20) — {event.title}
+              Paket &amp; Layanan — {event.title}
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-ink/70 max-w-3xl">
               {lifecycle.explanationId}
@@ -110,7 +110,7 @@ export default async function EventPlanPage({
                       perangkat
                     </li>
                     <li>
-                      Masa Aktif Pasca-Acara:{' '}
+                      Masa Akses Laporan:{' '}
                       <strong>H+{plan.postEventGraceDays} Hari (Unduh Laporan)</strong>
                     </li>
                     <li>Import Excel/CSV: {plan.features.importExcel ? 'Ya' : 'Tidak'}</li>
@@ -142,7 +142,7 @@ export default async function EventPlanPage({
                     </form>
                   ) : (
                     <span className="block text-center text-xs text-ink/60 bg-ivory p-2.5 rounded-button border border-border">
-                      Hubungi Admin WO untuk Upgrade Paket
+                      Hubungi Pengelola Platform untuk Aktivasi
                     </span>
                   )}
                 </div>
@@ -157,12 +157,10 @@ export default async function EventPlanPage({
             <div>
               <Badge variant="gold">LAYANAN TAMBAHAN KHUSUS (ADD-ONS)</Badge>
               <h2 className="mt-1.5 font-serif text-2xl font-bold text-navy">
-                Katalog Add-On Kuota, Perangkat keras (Hardware) &amp; Kru Lapangan
+                Layanan dengan Konfirmasi Manual
               </h2>
               <p className="mt-1 text-xs text-ink/70 max-w-3xl">
-                Pilih modul tambahan sesuai kebutuhan resepsi tanpa harus mengganti paket utama.
-                Tersedia kuota ekstra, sewa perangkat scanner/TV, kru penerima tamu, hingga kartu
-                fisik QR emboss emas.
+                Konsultasikan kebutuhan pendampingan, sewa perangkat, kru penerima tamu dan cetak kartu kepada pengelola. Ketersediaan, jadwal dan harga akhir dikonfirmasi sebelum pembayaran. Layanan ini tidak mengubah kuota paket secara otomatis.
               </p>
             </div>
           </div>
